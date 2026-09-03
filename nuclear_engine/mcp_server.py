@@ -139,9 +139,33 @@ class NuclearMCPServer:
                         "errors_only": {"type": "boolean", "default": False}
                     }
                 }
+            },
+            {
+                "name": "get_vehicle_specs",
+                "description": "Inspect aircraft flight specs, radar cross section, and hardpoint station configurations.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string", "description": "Vehicle name or designation (e.g. 'Revoker', 'FS-12', 'Darkreach')"}
+                    },
+                    "required": ["name"]
+                }
+            },
+            {
+                "name": "render_mission_map",
+                "description": "Render a tactical 2D ASCII radar map of all units and airbases in a mission.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "mission_name": {"type": "string", "description": "Name of mission in MissionEditor"},
+                        "width": {"type": "integer", "default": 60},
+                        "height": {"type": "integer", "default": 24}
+                    },
+                    "required": ["mission_name"]
+                }
             }
-
         ]
+
 
 
     def call_tool(self, name: str, args: Dict[str, Any]) -> Any:
@@ -247,7 +271,35 @@ class NuclearMCPServer:
             )
             return [{"source": e.source, "level": e.level, "message": e.message} for e in entries]
 
+        elif name == "get_vehicle_specs":
+
+            from nuclear_engine.domain.vehicle_inspector import VehicleInspector
+            v = VehicleInspector.get_vehicle(args["name"])
+            if not v:
+                return f"Vehicle '{args['name']}' not found."
+            return {
+                "name": v.name,
+                "designation": v.designation,
+                "role": v.role,
+                "empty_weight_kg": v.empty_weight_kg,
+                "max_takeoff_weight_kg": v.max_takeoff_weight_kg,
+                "top_speed_mach": v.top_speed_mach,
+                "rcs_m2": v.rcs_m2,
+                "radar_type": v.radar_type,
+                "hardpoints": [{"station": h.station_index, "name": h.name, "max_weight_kg": h.max_weight_kg, "weapons": h.compatible_weapons} for h in v.hardpoints],
+            }
+
+        elif name == "render_mission_map":
+            from nuclear_engine.tactical_advisor.map_renderer import TacticalMapRenderer
+            res = self.scanner.load_latest_mission_file(args["mission_name"])
+            if not res:
+                return f"Mission '{args['mission_name']}' not found."
+            path, mission = res
+            renderer = TacticalMapRenderer(mission)
+            return renderer.render_ascii(width=args.get("width", 60), height=args.get("height", 24))
+
         raise ValueError(f"Unknown tool: {name}")
+
 
 
     def run(self):

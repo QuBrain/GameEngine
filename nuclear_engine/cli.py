@@ -630,6 +630,173 @@ namespace {mod_name}
     console.print(f"[dim]To deploy to Steam:[/dim]\n  uv run no deploy {mod_name}")
 
 
+@app.command()
+def pack(
+    mod_name: str,
+    version: Optional[str] = typer.Option(None, "--version", "-v", help="Explicit version number (e.g. 1.0.0)"),
+    description: Optional[str] = typer.Option(None, "--desc", "-d", help="Short description of the mod"),
+    as_json: bool = typer.Option(False, "--json", "-j", help="Output result as JSON"),
+):
+    """[SDK] Package mod into a Thunderstore-compatible zip distribution in dist/."""
+    from nuclear_engine.builder.packer import ModPacker
+    packer = ModPacker()
+    try:
+        res = packer.pack(mod_name, version=version, description=description)
+        if as_json:
+            print(json.dumps({
+                "mod_name": res.mod_name,
+                "version": res.version,
+                "zip_path": str(res.zip_path),
+                "size_bytes": res.size_bytes,
+                "manifest": res.manifest,
+            }, indent=2))
+            return
+
+        console.print(f"[bold green]Successfully packaged '{res.mod_name}' (v{res.version}):[/bold green]")
+        console.print(f"  Archive: [cyan]{res.zip_path}[/cyan] ({res.size_bytes} bytes)")
+        console.print("  Contents: manifest.json, icon.png, README.md, DLL, ModConfig.cs")
+        console.print("[dim]Ready for 1-click upload to Thunderstore / r2modman.[/dim]")
+    except Exception as e:
+        console.print(f"[bold red]Packaging failed:[/bold red] {e}")
+
+
+@app.command()
+def vehicle(
+    name: str,
+    as_json: bool = typer.Option(False, "--json", "-j", help="Output specs as JSON"),
+):
+    """[INTEL] Inspect aircraft specs, radar cross section, and hardpoint weapon stations."""
+    from nuclear_engine.domain.vehicle_inspector import VehicleInspector
+    v = VehicleInspector.get_vehicle(name)
+    if not v:
+        console.print(f"[red]Vehicle '{name}' not found. Run 'no vehicles' to list all supported airframes.[/red]")
+        return
+
+    if as_json:
+        data = {
+            "name": v.name,
+            "designation": v.designation,
+            "role": v.role,
+            "faction": v.faction,
+            "empty_weight_kg": v.empty_weight_kg,
+            "max_takeoff_weight_kg": v.max_takeoff_weight_kg,
+            "top_speed_mach": v.top_speed_mach,
+            "service_ceiling_m": v.service_ceiling_m,
+            "rcs_m2": v.rcs_m2,
+            "radar_type": v.radar_type,
+            "countermeasures": v.countermeasures,
+            "hardpoints": [
+                {
+                    "station": h.station_index,
+                    "name": h.name,
+                    "location": h.location,
+                    "max_weight_kg": h.max_weight_kg,
+                    "weapons": h.compatible_weapons,
+                }
+                for h in v.hardpoints
+            ],
+        }
+        print(json.dumps(data, indent=2))
+        return
+
+    table = Table(title=f"{v.designation} '{v.name}' Specifications", box=box.ROUNDED)
+    table.add_column("Attribute", style="cyan")
+    table.add_column("Value", style="bold white")
+
+    table.add_row("Role", v.role)
+    table.add_row("Faction", v.faction)
+    table.add_row("Crew", str(v.crew))
+    table.add_row("Empty Weight", f"{v.empty_weight_kg:,} kg")
+    table.add_row("Max Takeoff Weight", f"{v.max_takeoff_weight_kg:,} kg")
+    table.add_row("Top Speed", f"Mach {v.top_speed_mach}")
+    table.add_row("Service Ceiling", f"{v.service_ceiling_m:,} m")
+    table.add_row("Radar Cross Section (RCS)", f"{v.rcs_m2} m²")
+    table.add_row("Radar Suite", v.radar_type)
+    table.add_row("Countermeasures", ", ".join(f"{k}: {val}" for k, val in v.countermeasures.items()))
+
+    console.print(table)
+
+    if v.hardpoints:
+        hp_table = Table(title=f"{v.name} Hardpoint Stations ({len(v.hardpoints)})", box=box.SIMPLE_HEAVY)
+        hp_table.add_column("#", justify="center")
+        hp_table.add_column("Station Name", style="bold yellow")
+        hp_table.add_column("Location")
+        hp_table.add_column("Max Load", justify="right")
+        hp_table.add_column("Compatible Ordnance", style="dim")
+
+        for h in v.hardpoints:
+            hp_table.add_row(str(h.station_index), h.name, h.location, f"{h.max_weight_kg} kg", ", ".join(h.compatible_weapons))
+
+        console.print(hp_table)
+
+
+@app.command()
+def vehicles(as_json: bool = typer.Option(False, "--json", "-j", help="Output all vehicles as JSON")):
+    """[INTEL] List all indexed Nuclear Option vehicles and designations."""
+    from nuclear_engine.domain.vehicle_inspector import VehicleInspector
+    all_v = VehicleInspector.list_all()
+
+    if as_json:
+        print(json.dumps([{"name": v.name, "designation": v.designation, "role": v.role, "hardpoints": len(v.hardpoints)} for v in all_v], indent=2))
+        return
+
+    table = Table(title="Nuclear Option Airframes & Vehicles", box=box.ROUNDED)
+    table.add_column("Designation", style="bold cyan")
+    table.add_column("Name", style="bold white")
+    table.add_column("Role")
+    table.add_column("Top Speed", justify="center")
+    table.add_column("RCS", justify="center")
+    table.add_column("Hardpoints", justify="center")
+
+    for v in all_v:
+        table.add_row(v.designation, v.name, v.role, f"M{v.top_speed_mach}", f"{v.rcs_m2} m²", str(len(v.hardpoints)))
+
+    console.print(table)
+
+
+@app.command()
+def docs():
+    """[SDK] Generate complete offline HTML API documentation for all 1,200+ game classes."""
+    from nuclear_engine.extractor.doc_generator import APIDocGenerator
+    console.print("[bold cyan]Generating offline API documentation in docs/api/...[/bold cyan]")
+    gen = APIDocGenerator()
+    html_path = gen.generate()
+    console.print(f"[bold green]API Documentation generated successfully:[/bold green]\n  {html_path}")
+    console.print(f"[dim]File size: {html_path.stat().st_size:,} bytes. Open in any browser.[/dim]")
+
+
+@app.command(name="mission-map")
+def mission_map(
+    mission_name: str,
+    svg: bool = typer.Option(False, "--svg", help="Export vector SVG map to file"),
+    width: int = typer.Option(60, "--width", "-w", help="ASCII grid width"),
+    height: int = typer.Option(24, "--height", "-h", help="ASCII grid height"),
+):
+    """[INTEL] Render a 2D tactical radar map of a mission scenario."""
+    from nuclear_engine.extractor.mission_scanner import MissionScanner
+    from nuclear_engine.tactical_advisor.map_renderer import TacticalMapRenderer
+
+    scanner = MissionScanner()
+    res = scanner.load_latest_mission_file(mission_name)
+    if not res:
+        console.print(f"[red]Mission '{mission_name}' not found.[/red]")
+        return
+
+    path, mission = res
+    renderer = TacticalMapRenderer(mission)
+
+    if svg:
+        svg_content = renderer.render_svg()
+        out_svg = config.workspace_root / f"{mission_name.replace(' ', '_')}_map.svg"
+        out_svg.write_text(svg_content, encoding="utf-8")
+        console.print(f"[bold green]Tactical SVG map exported:[/bold green] {out_svg}")
+        return
+
+    console.print(f"[bold cyan]Tactical Map: {mission_name}[/bold cyan]")
+    console.print(renderer.render_ascii(width=width, height=height))
+
+
+
 
 # ==========================================
 # 🔍 SEARCH & DECOMPILATION COMMANDS

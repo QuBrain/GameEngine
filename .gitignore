@@ -47,7 +47,11 @@ no_code_analysis/
 *.dll
 *.exe
 *.pdb
+# Generated docs & archives
+docs/api/
+dist/
 *.zip
+
 *.bin
 
 # BepInEx build artifacts
