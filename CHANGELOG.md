@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **OmniSharp Path Configuration:** Corrected `omnisharp.dotnetPath` in `.vscode/settings.json` and global IDE configuration to point to the .NET installation folder instead of executable name, eliminating `spawn UNKNOWN` errors.
 - **Environment PATH Hardening:** Added `.NET` runtime directory (`C:\Program Files\dotnet`) to the user environment PATH variable for seamless child process execution.
+- **IDE Documentation and Tooltip Localization:** Disabled localized German satellite resource assemblies in the C# extension runtime and configured `DOTNET_CLI_UI_LANGUAGE=en` and `VSLANG=1033` variables, ensuring all hover tooltips, type signatures, and compiler diagnostics display strictly in English across non-English host environments.
 
 ---
 
