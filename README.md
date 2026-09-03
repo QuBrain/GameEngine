@@ -196,7 +196,7 @@ Decompiled sources are saved to `no_code_analysis/source/<Assembly>/` and are im
 
 ---
 
-## Assembly Publicizer
+## Assembly Publicizer and IntelliSense
 
 Unity game assemblies enforce `private` and `internal` access restrictions on internal fields and methods. The SDK incorporates an assembly publicizer that rewrites metadata flags to `public`:
 
@@ -204,7 +204,25 @@ Unity game assemblies enforce `private` and `internal` access restrictions on in
 uv run no publicize
 ```
 
-The output is written to `lib/publicized/Assembly-CSharp.dll`. Referencing this file in your C# IDE (Visual Studio, JetBrains Rider, VS Code) enables full IntelliSense for all private fields and internal classes.
+The output is written to `lib/publicized/Assembly-CSharp.dll`.
+
+---
+
+## IDE Integration and Autocomplete
+
+The SDK provides automatic configuration for Visual Studio, JetBrains Rider, and VS Code (C# Dev Kit and OmniSharp):
+
+```bash
+uv run no sync-ide
+```
+
+### Components Configured
+
+1. **Master Solution (`plugins/NuclearMods.sln`):** Automatically discovers and links all mod projects in the `plugins/` folder.
+2. **Global MSBuild Properties (`plugins/Directory.Build.props`):** Automatically provides references to `Assembly-CSharp.dll` (publicized), `Mirage.dll`, `UnityEngine.dll`, and BepInEx for every mod project without manual XML editing.
+3. **C# XML Documentation Tooltips (`lib/publicized/Assembly-CSharp.xml`):** Injects docstrings into the publicized assembly so that hovering over classes and methods (`Aircraft.LockedByMissile`, `Radar.EstimateDetection`, `Missile.Explode`) displays descriptive summaries directly in your editor.
+4. **Native `dotnet build` Compatibility:** Mods can be compiled directly through your editor or terminal (`dotnet build`) with zero NuGet restore errors or missing assembly warnings.
+
 
 ---
 
