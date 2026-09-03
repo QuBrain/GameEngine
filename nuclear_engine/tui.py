@@ -11,8 +11,9 @@ from textual.app import App, ComposeResult
 from textual.containers import Vertical, Center, Middle, Container, Horizontal
 from textual.widgets import Header, Footer, Input, Static, Label, ListView, ListItem
 from textual.binding import Binding
-from rich.console import RenderableType
+from rich.console import RenderableType, Group
 from rich.panel import Panel
+
 from rich.syntax import Syntax
 from rich.table import Table
 from rich.tree import Tree
@@ -285,7 +286,7 @@ class NuclearSearchApp(App):
             box=box.SIMPLE,
         )
 
-        content_display.update(Vertical(hint_panel, t))
+        content_display.update(Group(hint_panel, t))
 
     def _render_method(self, class_name: str, method_name: str) -> None:
         content_display = self.query_one("#content_display", Static)
@@ -323,7 +324,7 @@ class NuclearSearchApp(App):
         if callers_panel:
             elements.append(callers_panel)
 
-        content_display.update(Vertical(*elements))
+        content_display.update(Group(*elements))
 
     def _render_hook(self, class_name: str, method_name: str) -> None:
         content_display = self.query_one("#content_display", Static)
@@ -372,7 +373,7 @@ class NuclearSearchApp(App):
                 for v in enum.values:
                     t.add_row(v)
                 tables.append(t)
-            content_display.update(Vertical(*tables))
+            content_display.update(Group(*tables))
             return
 
         self._check_and_render_enum(target)
@@ -420,8 +421,9 @@ class NuclearSearchApp(App):
         if t.row_count == 0:
             content_display.update(Panel(f"[yellow]No results found for '{query}'. Try searching for 'Radar', 'Aircraft', 'Missile', or 'subclasses Unit'.[/yellow]", title="Search"))
         else:
-            hint = Label("[dim green]Tip: Type any Class.Method (e.g. Aircraft.LockedByMissile) to view full source and Harmony hook.[/dim green]")
-            content_display.update(Vertical(hint, t))
+            hint = "[dim green]Tip: Type any Class.Method (e.g. Aircraft.LockedByMissile) to view full source and Harmony hook.[/dim green]"
+            content_display.update(Group(hint, t))
+
 
 
 def start_tui():

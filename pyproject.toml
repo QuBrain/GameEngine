@@ -29,3 +29,8 @@ nuclear-engine = "nuclear_engine.cli:app"
 
 [tool.setuptools.packages.find]
 include = ["nuclear_engine*"]
+
+[dependency-groups]
+dev = [
+    "pytest-asyncio>=1.4.0",
+]
