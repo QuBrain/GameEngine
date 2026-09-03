@@ -13,4 +13,7 @@
       Condition="!Exists('$(ProjectAssetsFile)')" />
 
   </Target>
+
+  <Target Name="Restore" />
 </Project>
+

@@ -1,6 +1,6 @@
 # Nuclear Option Modding SDK
 
-[![Target Game](https://img.shields.io/badge/Game-Nuclear%20Option-red?style=flat-square)](https://store.steampowered.com/app/2158680/Nuclear_Option/)
+[![Target Game](https://img.shields.io/badge/Game-Nuclear%20Option-red?style=flat-square)](https://store.steampowered.com/app/2168680/Nuclear_Option/)
 [![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![Package Manager](https://img.shields.io/badge/uv-Astral-DE5FE9?style=flat-square)](https://docs.astral.sh/uv/)
 [![.NET SDK](https://img.shields.io/badge/.NET-8.0%20%7C%209.0-512BD4?style=flat-square&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
