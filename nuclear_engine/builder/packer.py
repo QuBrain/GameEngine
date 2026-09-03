@@ -95,6 +95,17 @@ class ModPacker:
             "dependencies": dependencies or ["BepInEx-BepInExPack-5.4.2100"],
         }
 
+        nomnom_data = {
+            "id": f"com.{author.lower().replace(' ', '')}.{mod_name.lower()}",
+            "displayName": mod_name,
+            "description": detected_desc,
+            "tags": ["mod", "BepInEx"],
+            "authors": [author],
+            "gameVersion": "0.32+",
+            "version": detected_version,
+            "manager": "NOMM",
+        }
+
         # 5. Icon handling
         icon_path = mod_dir / "icon.png"
         if icon_path.exists():
@@ -107,18 +118,22 @@ class ModPacker:
         if readme_path.exists():
             readme_text = readme_path.read_text(encoding="utf-8")
         else:
-            readme_text = f"# {mod_name}\n\n{detected_desc}\n\n## Installation\nInstall via Thunderstore Mod Manager or extract into `BepInEx/plugins/`.\n"
+            readme_text = f"# {mod_name}\n\n{detected_desc}\n\n## Installation\nInstall via Nuclear Option Mod Manager (NOMM), Thunderstore, or extract into `BepInEx/plugins/`.\n"
 
-        # 7. Create ZIP archive
+        # 7. Create ZIP archive (Dual Thunderstore + NOMM layout)
         zip_filename = f"{mod_name}_{detected_version}.zip"
         zip_path = self.dist_dir / zip_filename
 
         with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as z:
-            # Thunderstore root requirements: manifest.json, icon.png, README.md, <ModName>.dll
+            # Thunderstore & NOMM root requirements
             z.writestr("manifest.json", json.dumps(manifest_data, indent=2))
+            z.writestr("nomnom.json", json.dumps(nomnom_data, indent=2))
             z.writestr("icon.png", icon_bytes)
             z.writestr("README.md", readme_text)
             z.write(dll_path, arcname=f"{mod_name}.dll")
+
+            # Standard NOMM BepInEx folder structure
+            z.write(dll_path, arcname=f"BepInEx/plugins/{mod_name}/{mod_name}.dll")
 
             # Include ModConfig.cs if present as documentation
             cfg_file = mod_dir / "ModConfig.cs"
@@ -129,10 +144,11 @@ class ModPacker:
             mod_name=mod_name,
             version=detected_version,
             zip_path=zip_path,
-            file_count=4 if not (mod_dir / "ModConfig.cs").exists() else 5,
+            file_count=6 if not (mod_dir / "ModConfig.cs").exists() else 7,
             size_bytes=zip_path.stat().st_size,
             manifest=manifest_data,
         )
+
 
     def _detect_version(self, mod_dir: Path) -> Optional[str]:
         # Search in .csproj

@@ -5,7 +5,9 @@
 [![Package Manager](https://img.shields.io/badge/uv-Astral-DE5FE9?style=flat-square)](https://docs.astral.sh/uv/)
 [![.NET SDK](https://img.shields.io/badge/.NET-8.0%20%7C%209.0-512BD4?style=flat-square&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 [![Mod Framework](https://img.shields.io/badge/Mod%20Loader-BepInEx%205-F49342?style=flat-square)](https://github.com/BepInEx/BepInEx)
+[![Mod Manager](https://img.shields.io/badge/Manager-NOMM%20%7C%20Thunderstore-blueviolet?style=flat-square)](https://github.com/Combat787/NOMM)
 [![Protocol](https://img.shields.io/badge/Protocol-MCP%20Server-007ACC?style=flat-square)](https://modelcontextprotocol.io/)
+
 
 [![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)](https://microsoft.com/windows)
 [![Test Suite](https://img.shields.io/badge/Tests-44%20passed-2ea44f?style=flat-square)](https://docs.pytest.org/)
@@ -173,16 +175,17 @@ Add a typed BepInEx configuration boilerplate (`ModConfig.cs`) to your mod:
 uv run no add-config CombatTracker
 ```
 
-### 6. Package for Thunderstore / Distribution
-
-Package your mod into a distribution zip archive containing `manifest.json`, `icon.png`, `README.md`, and compiled binaries:
-
+### 6. Package for NOMM and Thunderstore
+ 
+Package your mod into a distribution zip archive containing dual layouts for Nuclear Option Mod Manager (NOMM), the NOMNOM registry, and Thunderstore:
+ 
 ```bash
 uv run no pack CombatTracker
 uv run no pack CombatTracker --json
 ```
 
-Output is written to `dist/<ModName>_<Version>.zip` ready for upload to Thunderstore or r2modman.
+Output is written to `dist/<ModName>_<Version>.zip` containing `manifest.json`, `nomnom.json`, `icon.png`, `README.md`, and standard `BepInEx/plugins/<ModName>/` binaries, ready for one-click installation via NOMM or upload to Thunderstore.
+
 
 ### 7. Hot-Reload File Watcher
  
