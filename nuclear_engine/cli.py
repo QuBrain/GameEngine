@@ -40,6 +40,14 @@ app = typer.Typer(
 console = Console(legacy_windows=False)
 
 
+@app.command()
+def tui():
+    """[TUI] Launch the interactive Nuclear Option search engine (OpenCode style)."""
+    from nuclear_engine.tui import start_tui
+    start_tui()
+
+
+
 # ==========================================
 # 🛠️ MODDING & API COMMANDS (Token-Savers)
 # ==========================================
