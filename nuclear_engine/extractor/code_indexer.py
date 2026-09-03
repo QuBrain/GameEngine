@@ -33,6 +33,30 @@ class FieldInfo:
 
 
 @dataclass
+class StructInfo:
+    name: str
+    class_name: str
+    fields: List[Tuple[str, str]]
+    line_number: int
+
+
+@dataclass
+class EventInfo:
+    name: str
+    event_type: str
+    class_name: str
+    line_number: int
+
+
+@dataclass
+class EnumInfo:
+    name: str
+    values: List[str]
+    class_name: str
+    line_number: int
+
+
+@dataclass
 class ClassInfo:
     name: str
     path: Path
@@ -41,7 +65,10 @@ class ClassInfo:
     fields: List[FieldInfo] = field(default_factory=list)
     properties: List[str] = field(default_factory=list)
     methods: List[MethodInfo] = field(default_factory=list)
-    enums: List[str] = field(default_factory=list)
+    structs: List[StructInfo] = field(default_factory=list)
+    events: List[EventInfo] = field(default_factory=list)
+    enums: List[EnumInfo] = field(default_factory=list)
+
 
 
 class CodeIndexer:
@@ -137,7 +164,113 @@ class CodeIndexer:
                 )
             )
 
+        # 4. Extract Events (e.g. public event Action<OnMissileWarning> onMissileWarning;)
+        event_pattern = re.compile(
+            r"^\s*(?:public|protected)\s+event\s+([\w\<\>,\s]+?)\s+(\w+)\s*;",
+            re.MULTILINE,
+        )
+        for m in event_pattern.finditer(content):
+            line_no = content[: m.start()].count("\n") + 1
+            info.events.append(
+                EventInfo(
+                    name=m.group(2),
+                    event_type=m.group(1).strip(),
+                    class_name=path.stem,
+                    line_number=line_no,
+                )
+            )
+
+        # 5. Extract Structs (e.g. public struct OnMissileWarning { public Missile missile; })
+        struct_pattern = re.compile(
+            r"(?:public|protected|internal)\s+struct\s+(\w+)\s*\{([^}]*)\}",
+            re.MULTILINE,
+        )
+        for m in struct_pattern.finditer(content):
+            s_name = m.group(1)
+            s_body = m.group(2)
+            line_no = content[: m.start()].count("\n") + 1
+            # Extract struct fields
+            s_fields = []
+            for f_match in re.finditer(r"public\s+([\w\<\>\[\]]+)\s+(\w+)\s*;", s_body):
+                s_fields.append((f_match.group(1), f_match.group(2)))
+            info.structs.append(
+                StructInfo(
+                    name=s_name,
+                    class_name=path.stem,
+                    fields=s_fields,
+                    line_number=line_no,
+                )
+            )
+
+        # 6. Extract Enums (e.g. public enum FlightMode : byte { Cruise, Combat })
+        enum_pattern = re.compile(
+            r"(?:(?:public|protected|internal|private)\s+)?enum\s+(\w+)(?:\s*:\s*\w+)?\s*\{([^}]*)\}",
+            re.MULTILINE,
+        )
+        for m in enum_pattern.finditer(content):
+            e_name = m.group(1)
+            e_body = m.group(2)
+            line_no = content[: m.start()].count("\n") + 1
+            # Extract enum values
+            vals = [
+                v.split("=")[0].strip()
+                for v in e_body.split(",")
+                if v.strip() and not v.strip().startswith("//")
+            ]
+            info.enums.append(
+                EnumInfo(
+                    name=e_name,
+                    values=vals,
+                    class_name=path.stem,
+                    line_number=line_no,
+                )
+            )
+
+
         return info
+
+    def find_callers(self, target: str, limit: int = 30) -> List[Tuple[str, int, str]]:
+        """Find references/callers of a method or field across the codebase."""
+        self._ensure_cache()
+        results = []
+        target_pattern = re.compile(rf"\b{re.escape(target)}\b")
+
+        for class_lower, path in self._class_cache.items():
+            if len(results) >= limit:
+                break
+            try:
+                with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                    for line_no, line in enumerate(f, 1):
+                        line_stripped = line.strip()
+                        if target_pattern.search(line_stripped):
+                            if not line_stripped.startswith("//"):
+                                results.append((path.stem, line_no, line_stripped))
+                                if len(results) >= limit:
+                                    break
+            except Exception:
+                continue
+        return results
+
+    def find_subclasses(self, base_class_name: str) -> List[Tuple[str, Path]]:
+        """Find all classes that inherit from a specific base class or interface."""
+        self._ensure_cache()
+        subclasses = []
+        base_lower = base_class_name.lower()
+
+        for class_lower, path in self._class_cache.items():
+            info = self.parse_class(path.stem)
+            if info:
+                is_sub = False
+                if info.base_class and info.base_class.lower() == base_lower:
+                    is_sub = True
+                elif any(i.lower() == base_lower for i in info.interfaces):
+                    is_sub = True
+
+                if is_sub:
+                    subclasses.append((info.name, path))
+
+        return sorted(subclasses, key=lambda x: x[0])
+
 
     def get_method_source(self, class_name: str, method_name: str) -> Optional[Tuple[str, int]]:
         """Extract only the exact method body and line number, saving thousands of tokens."""

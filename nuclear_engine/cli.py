@@ -147,6 +147,208 @@ def sim(keyword: str, limit: int = 25):
     console.print(table)
 
 
+@app.command()
+def callers(target: str, limit: int = 25):
+
+    """[MODDING] Find all places in the game code where a method, field, or event is called."""
+    indexer = CodeIndexer()
+    console.print(f"[bold cyan]Finding callers/references of '{target}'...[/bold cyan]")
+    refs = indexer.find_callers(target, limit=limit)
+
+    if not refs:
+        console.print(f"[yellow]No callers of '{target}' found.[/yellow]")
+        return
+
+    table = Table(title=f"Callers & References of '{target}' ({len(refs)})", box=box.ROUNDED)
+    table.add_column("Calling Class", style="bold cyan")
+    table.add_column("Line", justify="right", style="dim")
+    table.add_column("Code Snippet", style="white")
+
+    for c_name, line_no, snippet in refs:
+        table.add_row(c_name, str(line_no), snippet[:110])
+
+    console.print(table)
+
+
+@app.command()
+def subclasses(base_class: str):
+    """[MODDING] Show all classes that inherit from a base class or interface (e.g. Unit, Weapon)."""
+    indexer = CodeIndexer()
+    console.print(f"[bold cyan]Searching subclasses of '{base_class}'...[/bold cyan]")
+    subs = indexer.find_subclasses(base_class)
+
+    if not subs:
+        console.print(f"[yellow]No classes inheriting from '{base_class}' found.[/yellow]")
+        return
+
+    tree = Tree(f"[bold green]{base_class}[/bold green] ({len(subs)} subclasses / implementations)")
+    for name, path in subs:
+        tree.add(f"[bold cyan]{name}[/bold cyan] [dim]({path.name})[/dim]")
+    console.print(tree)
+
+
+@app.command()
+def structs(class_name: str):
+    """[MODDING] Show all structs defined inside a class (e.g. OnMissileWarning in MissileWarning)."""
+    indexer = CodeIndexer()
+    info = indexer.parse_class(class_name)
+
+    if not info or not info.structs:
+        console.print(f"[yellow]No structs found in class '{class_name}'.[/yellow]")
+        return
+
+    table = Table(title=f"Structs in {info.name} ({len(info.structs)})", box=box.ROUNDED)
+    table.add_column("Struct Name", style="bold cyan")
+    table.add_column("Fields", style="green")
+    table.add_column("Line", justify="right", style="dim")
+
+    for s in info.structs:
+        fields_str = ", ".join(f"{t} {n}" for t, n in s.fields) or "[dim]empty[/dim]"
+        table.add_row(s.name, fields_str, str(s.line_number))
+
+    console.print(table)
+
+
+@app.command()
+def events(class_name: str):
+    """[MODDING] Show all subscribable C# events in a class."""
+    indexer = CodeIndexer()
+    info = indexer.parse_class(class_name)
+
+    if not info or not info.events:
+        console.print(f"[yellow]No events found in class '{class_name}'.[/yellow]")
+        return
+
+    table = Table(title=f"Events in {info.name} ({len(info.events)})", box=box.ROUNDED)
+    table.add_column("Event Name", style="bold cyan")
+    table.add_column("Type / Action", style="magenta")
+    table.add_column("Line", justify="right", style="dim")
+
+    for e in info.events:
+        table.add_row(e.name, e.event_type, str(e.line_number))
+
+    console.print(table)
+
+
+@app.command()
+def enums(target: str):
+    """[MODDING] Show enums inside a class or search for an enum by name across all game classes."""
+    indexer = CodeIndexer()
+    info = indexer.parse_class(target)
+
+    # 1. Target is a class containing enums
+    if info and info.enums:
+        for enum in info.enums:
+            console.print(f"[bold cyan]enum {enum.name}[/bold cyan] [dim](in {info.name}, Line {enum.line_number})[/dim]")
+            for val in enum.values:
+                console.print(f"  • [yellow]{val}[/yellow]")
+        return
+
+    # 2. Target might be an enum name itself across any class
+    console.print(f"[bold cyan]Searching all classes for enum '{target}'...[/bold cyan]")
+    indexer._ensure_cache()
+    found = False
+    for c_lower, path in indexer._class_cache.items():
+        c_info = indexer.parse_class(path.stem)
+        if c_info:
+            for enum in c_info.enums:
+                if target.lower() in enum.name.lower():
+                    found = True
+                    console.print(f"\n[bold cyan]enum {enum.name}[/bold cyan] [dim](in {c_info.name}.cs, Line {enum.line_number})[/dim]")
+                    for val in enum.values:
+                        console.print(f"  • [yellow]{val}[/yellow]")
+
+    if not found:
+        console.print(f"[yellow]No enum matching '{target}' found.[/yellow]")
+
+
+
+@app.command(name="new-mod")
+def new_mod(mod_name: str):
+    """[MODDING] Scaffold a new, ready-to-compile BepInEx C# mod with Harmony patches."""
+    mod_dir = config.workspace_root / "plugins" / mod_name
+    if mod_dir.exists():
+        console.print(f"[red]Directory already exists: {mod_dir}[/red]")
+        return
+
+    mod_dir.mkdir(parents=True, exist_ok=True)
+
+    # 1. Create .csproj
+    csproj_content = f"""<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>{mod_name}</AssemblyName>
+    <Description>{mod_name} Mod for Nuclear Option</Description>
+    <Version>1.0.0</Version>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <GameDir>{config.game_dir}</GameDir>
+    <ManagedDir>$(GameDir)\\NuclearOption_Data\\Managed</ManagedDir>
+    <BepInExDir>$(GameDir)\\BepInEx\\core</BepInExDir>
+  </PropertyGroup>
+
+  <ItemGroup Condition="Exists('$(BepInExDir)')">
+    <Reference Include="0Harmony"><HintPath>$(BepInExDir)\\0Harmony.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="BepInEx"><HintPath>$(BepInExDir)\\BepInEx.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+
+  <ItemGroup Condition="Exists('$(ManagedDir)')">
+    <Reference Include="UnityEngine"><HintPath>$(ManagedDir)\\UnityEngine.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(ManagedDir)\\UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Assembly-CSharp"><HintPath>$(ManagedDir)\\Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+</Project>
+"""
+    with open(mod_dir / f"{mod_name}.csproj", "w", encoding="utf-8") as f:
+        f.write(csproj_content)
+
+    # 2. Create Plugin.cs
+    plugin_content = f"""using BepInEx;
+using BepInEx.Logging;
+using HarmonyLib;
+using UnityEngine;
+
+namespace {mod_name}
+{{
+    [BepInPlugin("com.nuclearoption.{mod_name.lower()}", "{mod_name}", "1.0.0")]
+    public class {mod_name}Plugin : BaseUnityPlugin
+    {{
+        internal static ManualLogSource ModLogger;
+
+        private void Awake()
+        {{
+            ModLogger = Logger;
+            ModLogger.LogInfo("{mod_name} loaded successfully!");
+
+            var harmony = new Harmony("com.nuclearoption.{mod_name.lower()}");
+            harmony.PatchAll();
+        }}
+    }}
+
+    // Example Harmony Patch: Hooks into aircraft missile lock
+    [HarmonyPatch(typeof(Aircraft), nameof(Aircraft.LockedByMissile))]
+    public static class Patch_Aircraft_LockedByMissile
+    {{
+        [HarmonyPrefix]
+        public static void Prefix(Aircraft __instance, Missile missile)
+        {{
+            {mod_name}Plugin.ModLogger.LogInfo($"[Alert] Aircraft {{__instance.name}} locked by {{missile.name}}!");
+        }}
+    }}
+}}
+"""
+    with open(mod_dir / "Plugin.cs", "w", encoding="utf-8") as f:
+        f.write(plugin_content)
+
+    console.print(f"[bold green]✓ Successfully scaffolded mod '{mod_name}' at:[/bold green]")
+    console.print(f"  [cyan]{mod_dir}[/cyan]")
+    console.print(f"\n[dim]To compile with dotnet:[/dim]")
+    console.print(f"  [bold]dotnet build plugins/{mod_name}[/bold]")
+
+
+
 # ==========================================
 # 🔍 SEARCH & DECOMPILATION COMMANDS
 # ==========================================

@@ -49,3 +49,34 @@ def test_indexer_generates_harmony_patch(indexer):
     assert "[HarmonyPatch(typeof(Aircraft), nameof(Aircraft.LockedByMissile))]" in patch
     assert "Aircraft __instance" in patch
     assert "Missile missile" in patch
+
+
+def test_indexer_finds_subclasses(indexer):
+    if not config.decompiled_dir.exists():
+        pytest.skip("Source not decompiled")
+    subs = indexer.find_subclasses("Unit")
+    names = [name for name, _ in subs]
+    assert "Aircraft" in names
+    assert "Missile" in names
+
+
+def test_indexer_finds_callers(indexer):
+    if not config.decompiled_dir.exists():
+        pytest.skip("Source not decompiled")
+    callers = indexer.find_callers("LockedByMissile")
+    assert len(callers) >= 2
+    classes = [c for c, _, _ in callers]
+    assert "Aircraft" in classes or "Missile" in classes
+
+
+def test_indexer_finds_structs_and_events(indexer):
+    if not config.decompiled_dir.exists():
+        pytest.skip("Source not decompiled")
+    info = indexer.parse_class("MissileWarning")
+    assert info is not None
+    struct_names = [s.name for s in info.structs]
+    assert "OnMissileWarning" in struct_names
+
+    event_names = [e.name for e in info.events]
+    assert "onMissileWarning" in event_names
+
