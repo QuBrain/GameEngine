@@ -134,6 +134,11 @@ class IDESync:
 
         content = """{
   "dotnet.defaultSolution": "plugins/NuclearMods.sln",
+  "dotnet.server.useOmnisharp": true,
+  "dotnet.dotnetPath": "C:\\\\Program Files\\\\dotnet\\\\dotnet.exe",
+  "omnisharp.dotNetCliPaths": [
+    "C:\\\\Program Files\\\\dotnet\\\\dotnet.exe"
+  ],
   "omnisharp.useModernNet": true,
   "omnisharp.enableRoslynAnalyzers": true,
   "omnisharp.organizeImportsOnFormat": true,
@@ -146,6 +151,7 @@ class IDESync:
   }
 }
 """
+
         with open(settings_file, "w", encoding="utf-8") as f:
             f.write(content)
 

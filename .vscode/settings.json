@@ -1,5 +1,10 @@
 {
   "dotnet.defaultSolution": "plugins/NuclearMods.sln",
+  "dotnet.server.useOmnisharp": true,
+  "dotnet.dotnetPath": "C:\\Program Files\\dotnet\\dotnet.exe",
+  "omnisharp.dotNetCliPaths": [
+    "C:\\Program Files\\dotnet\\dotnet.exe"
+  ],
   "omnisharp.useModernNet": true,
   "omnisharp.enableRoslynAnalyzers": true,
   "omnisharp.organizeImportsOnFormat": true,
