@@ -15,8 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Harmony CIL OpCode Inspector (`no il`):** Disassembles game methods to raw CIL bytecode instructions with offsets and operands. Includes `--matcher` flag to generate ready-to-use Harmony `CodeMatcher` boilerplate for transpiler development.
 - **Aircraft Livery and Texture Scaffolder (`no new-livery`):** Automates custom aircraft skin package generation (`skins/<Vehicle>/<SkinName>/`) including `livery.json` metadata, texture placement guides, and a C# BepInEx runtime loader plugin.
 - **Performance and Anti-Stutter Code Auditor (`no audit`):** Statically scans mod C# source code for simulation frame-drop hazards, including `FindObjectsOfType` in `Update()`, un-cached `GetComponent` calls, per-frame LINQ heap allocations, and blocking synchronous file or network I/O.
-- **Model Context Protocol (MCP) Expansion:** Added 4 new native tools (`validate_mission_scenario`, `get_method_il`, `create_aircraft_livery`, `audit_mod_performance`), bringing the total MCP tool count to 19.
-- **Automated Test Suite Expansion:** Added comprehensive test coverage in `tests/test_advanced_toolchain.py`, bringing the test suite to 44 passing unit tests.
+- **IDE F12 Decompilation Navigation:** Enabled `omnisharp.enableDecompilationSupport` in `.vscode/settings.json`, allowing developers to press F12 on any game type or method (`Aircraft`, `CombatHUD`, `LockedByMissile`) to decompile and browse the original C# source code directly inside the IDE without needing dnSpy.
+- **Automated Harmony Patch Generator (`no patch`):** Scaffolds 100% typed, compilable Harmony patch classes (`Prefix`, `Postfix`, `Transpiler` with `CodeMatcher`) directly from real in-game signatures.
+- **Rich In-Editor XML Docstrings:** Expanded `Assembly-CSharp.xml` with detailed summaries for 35+ core game systems, fields, and events for instant hover explanations.
+- **VS Code C# Modding Snippets:** Added `.vscode/csharp.code-snippets` with instant shortcuts (`hprefix`, `hpostfix`, `htranspiler`, `bepmod`, `nolog`, `coroutine`).
+- **Model Context Protocol (MCP) Expansion:** Added native `generate_harmony_patch` tool, bringing the total MCP tool count to 20.
+- **Automated Test Suite Expansion:** Added comprehensive test coverage in `tests/test_patch_generator.py`, bringing the test suite to 52 passing unit tests.
 
 ### Fixed
 - **OmniSharp Path Configuration:** Corrected `omnisharp.dotnetPath` in `.vscode/settings.json` and global IDE configuration to point to the .NET installation folder instead of executable name, eliminating `spawn UNKNOWN` errors.

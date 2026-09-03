@@ -18,6 +18,18 @@ KNOWN_DOCS: Dict[str, str] = {
     "Aircraft.GetRadarReturn": "Calculates radar echo power based on distance, radar cross section (RCS), and terrain clutter.",
     "Aircraft.TakeDamage": "Applies kinetic, explosive, or shrapnel damage to airframe components.",
     "Aircraft.KnownRadarWarning": "Checks if an incoming radar emitter is actively painting or tracking this airframe.",
+    "Aircraft.gearDeployed": "Boolean flag indicating whether the landing gear is fully deployed and locked.",
+    "Aircraft.fuelLevel": "Current remaining internal and external fuel quantity in kilograms.",
+    "Aircraft.CmdLaunchMissile": "Mirage Command sending missile launch request across the network.",
+    "Aircraft.SetGear": "Toggles landing gear deployment state.",
+    "Aircraft.onSetGear": "Event triggered when landing gear is commanded to extend or retract.",
+    "Aircraft.GetMissileWarningSystem": "Retrieves the active Missile Approach Warning System (MAWS) component.",
+    "Aircraft.GetAircraftParameters": "Returns aerodynamic and performance characteristics of the airframe.",
+    "Aircraft.disabled": "True if the aircraft is destroyed, disabled, or pilot is incapacitated.",
+    "Aircraft.rb": "Underlying Unity Rigidbody driving flight physics and aerodynamics.",
+    "CombatHUD": "Cockpit and tactical HUD manager rendering radar targets, weapon cues, and flight status.",
+    "CombatHUD.aircraft": "Currently controlled player aircraft instance.",
+    "SceneSingleton`1": "Global generic singleton container used throughout Nuclear Option for scene-level managers.",
     "Radar": "Active radar sensor component handling scanning, target detection, Doppler filtering, and track maintenance.",
     "Radar.EstimateDetection": "Evaluates whether a target unit can be detected given radar parameters, range, and target RCS.",
     "Missile": "Guided missile entity implementing propulsion, seeker guidance (IR/Radar/Optical), and proximity fuse.",
@@ -30,6 +42,13 @@ KNOWN_DOCS: Dict[str, str] = {
     "GroundVehicle": "Land combat vehicle handling pathfinding, turret tracking, and weapon stations.",
     "Ship": "Naval warship managing point-defense CIWS, long-range radar, and surface-to-air missile batteries.",
     "PartDamageTracker": "Monitors component-level structural integrity, fires, and detachment states.",
+    "MissionManager": "Coordinates scenario lifecycle, faction objectives, victory conditions, and entity spawns.",
+    "Airbase": "Airfield / base structure managing runways, rearm/refuel pads, and ground service vehicles.",
+    "Faction": "Defines team allegiance (e.g. Boscali, Prime, Neutral) and IFF identification.",
+    "WeaponStation": "Pylon or internal bay mount hosting ordnance pods, missiles, or bombs.",
+    "Munition": "Base munition class for bullets, shells, missiles, and free-fall bombs.",
+    "GlobalPosition": "Large-world double-precision coordinate system to avoid floating-point jitter at extreme distances.",
+    "PlayerController": "Local player input router binding flight sticks, throttles, and rudder pedals.",
 }
 
 
@@ -109,8 +128,23 @@ class IDESync:
 
         members_xml = []
         for member_name, doc in KNOWN_DOCS.items():
-            prefix = "T:" if "." not in member_name else "M:"
-            members_xml.append(f'        <member name="{prefix}{member_name}">\n            <summary>{doc}</summary>\n        </member>')
+            if "." not in member_name:
+                members_xml.append(f'        <member name="T:{member_name}">\n            <summary>{doc}</summary>\n        </member>')
+            else:
+                cls_name, mem = member_name.split(".", 1)
+                cls_info = indexer.parse_class(cls_name)
+                is_method = any(m.name == mem for m in cls_info.methods) if cls_info else False
+                is_field = any(f.name == mem for f in cls_info.fields) if cls_info else False
+                
+                if is_method:
+                    members_xml.append(f'        <member name="M:{member_name}">\n            <summary>{doc}</summary>\n        </member>')
+                elif is_field:
+                    members_xml.append(f'        <member name="F:{member_name}">\n            <summary>{doc}</summary>\n        </member>')
+                else:
+                    # Emit both F: and P: and M: to ensure IDE matches regardless of property/field/method accessor
+                    members_xml.append(f'        <member name="F:{member_name}">\n            <summary>{doc}</summary>\n        </member>')
+                    members_xml.append(f'        <member name="P:{member_name}">\n            <summary>{doc}</summary>\n        </member>')
+                    members_xml.append(f'        <member name="M:{member_name}">\n            <summary>{doc}</summary>\n        </member>')
 
         xml_content = f"""<?xml version="1.0"?>
 <doc>
@@ -143,9 +177,11 @@ class IDESync:
   "omnisharp.useModernNet": true,
 
   "omnisharp.enableRoslynAnalyzers": true,
+  "omnisharp.enableDecompilationSupport": true,
   "omnisharp.organizeImportsOnFormat": true,
   "csharp.inlayHints.parameters.enabled": true,
   "csharp.inlayHints.types.enabled": true,
+  "csharp.suppressDotnetRestoreNotification": true,
   "files.exclude": {
     "**/bin": true,
     "**/obj": true,

@@ -249,6 +249,18 @@ class NuclearMCPServer:
                     },
                     "required": ["mod_name"]
                 }
+            },
+            {
+                "name": "generate_harmony_patch",
+                "description": "Scaffold a complete, 100% typed C# Harmony patch class with Prefix, Postfix, or Transpiler.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "target": {"type": "string", "description": "Target method (e.g. 'Aircraft.LockedByMissile')"},
+                        "patch_types": {"type": "array", "items": {"type": "string"}, "description": "List of patch types: prefix, postfix, transpiler, or all"}
+                    },
+                    "required": ["target"]
+                }
             }
         ]
 
@@ -486,6 +498,14 @@ class NuclearMCPServer:
                 "warning_count": result.warning_count,
                 "issues": [i.__dict__ for i in result.issues],
             }
+
+        elif name == "generate_harmony_patch":
+            from nuclear_engine.generator.patch_generator import PatchGenerator
+            gen = PatchGenerator()
+            target = args["target"]
+            p_types = args.get("patch_types", ["prefix", "postfix", "transpiler"])
+            code = gen.generate_patch(target, patch_types=p_types)
+            return {"target": target, "code": code}
 
         raise ValueError(f"Unknown tool: {name}")
 

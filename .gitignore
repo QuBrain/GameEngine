@@ -39,6 +39,7 @@ htmlcov/
 !.vscode/launch.json
 !.vscode/settings.json
 !.vscode/extensions.json
+!.vscode/*.code-snippets
 
 
 

@@ -1275,6 +1275,31 @@ def audit_mod(
         console.print(f"[bold red]Audit Error:[/bold red] {e}")
         raise typer.Exit(code=1)
 
+@app.command(name="patch")
+def generate_patch_cmd(
+    target: str = typer.Argument(..., help="Target method signature, e.g. Aircraft.LockedByMissile or Aircraft.TakeDamage"),
+    type: Optional[str] = typer.Option("all", "--type", "-t", help="Patch types: prefix, postfix, transpiler, or all"),
+    out: Optional[Path] = typer.Option(None, "--out", "-o", help="Target file path to save patch"),
+    mod: Optional[str] = typer.Option(None, "--mod", "-m", help="Mod name in plugins/ to save into plugins/<mod>/Patches/"),
+):
+    """Scaffold a 100% typed, compilable Harmony patch from real game method signatures."""
+    from nuclear_engine.generator.patch_generator import PatchGenerator
+    from rich.syntax import Syntax
+
+    generator = PatchGenerator()
+    try:
+        types_list = [t.strip() for t in type.split(",") if t.strip()]
+        if out or mod:
+            saved_path = generator.save_patch(target, out_path=out, mod_name=mod, patch_types=types_list)
+            console.print(f"[bold green]Saved Harmony Patch:[/bold green] {saved_path}")
+        else:
+            code = generator.generate_patch(target, patch_types=types_list)
+            syntax = Syntax(code, "csharp", theme="monokai", line_numbers=True)
+            console.print(syntax)
+    except Exception as e:
+        console.print(f"[bold red]Patch Generation Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
 
 def main():
     app()
