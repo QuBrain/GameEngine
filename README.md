@@ -130,13 +130,69 @@ uv run no deploy CombatTracker
 Compiles the mod and copies the resulting DLL directly to the Steam game installation directory:
 `<SteamPath>/Nuclear Option/BepInEx/plugins/<ModName>.dll`.
 
-### 4. Launch Game
+### 4. Verify Harmony Patches
+
+Validate that all `[HarmonyPatch]` attributes in your mod target classes and methods that actually exist in the current game version:
+
+```bash
+uv run no verify-patches CombatTracker
+uv run no verify-patches CombatTracker --json
+```
+
+### 5. Generate Mod Configuration
+
+Add a typed BepInEx configuration boilerplate (`ModConfig.cs`) to your mod:
+
+```bash
+uv run no add-config CombatTracker
+```
+
+### 6. Launch Game
 
 ```bash
 uv run no run-game
 ```
 
 Launches Nuclear Option through Steam protocol.
+
+---
+
+## Log Viewer and Diagnostics
+
+Inspect and stream logs from the game and BepInEx mods with syntax highlighting:
+
+```bash
+# View last 50 lines of BepInEx mod logs
+uv run no logs
+
+# View last 100 lines of Unity engine logs (Player.log)
+uv run no logs --source player -n 100
+
+# Show only warnings and errors
+uv run no logs --errors-only
+
+# Stream logs live in real time during flight
+uv run no logs --follow
+
+# Output logs in JSON format
+uv run no logs -n 25 --json
+```
+
+---
+
+## Multi-Assembly Decompilation
+
+In addition to `Assembly-CSharp.dll`, the SDK can decompile and index any managed game assembly (e.g., Mirage multiplayer networking, Rewired input):
+
+```bash
+# Decompile Mirage networking stack
+uv run no decompile Mirage
+
+# Decompile Rewired input manager
+uv run no decompile Rewired_Core
+```
+
+Decompiled sources are saved to `no_code_analysis/source/<Assembly>/` and are immediately searchable via `api`, `method`, `sim`, and `callers`.
 
 ---
 
