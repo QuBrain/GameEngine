@@ -21,7 +21,10 @@ dev = [
 ]
 
 [project.scripts]
+no = "nuclear_engine.cli:app"
+ne = "nuclear_engine.cli:app"
 nuclear-engine = "nuclear_engine.cli:app"
+
 
 [tool.setuptools.packages.find]
 include = ["nuclear_engine*"]

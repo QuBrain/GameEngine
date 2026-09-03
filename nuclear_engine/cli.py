@@ -1,10 +1,12 @@
-"""NuclearEngine Command Line Interface powered by Rich."""
+"""NuclearEngine Command Line Interface (CLI).
+High-efficiency, token-saving tools for Nuclear Option modding, API discovery, and mission intelligence.
+"""
 
 import sys
 from pathlib import Path
 from typing import Optional
 
-# Ensure UTF-8 output on Windows console to prevent charmap errors
+# Ensure UTF-8 output on Windows console
 if sys.platform == "win32":
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -15,6 +17,7 @@ if sys.platform == "win32":
 import typer
 from rich.console import Console
 from rich.panel import Panel
+from rich.syntax import Syntax
 from rich.table import Table
 from rich.tree import Tree
 from rich import box
@@ -25,27 +28,176 @@ from nuclear_engine.domain.units import KNOWN_AIRCRAFT, KNOWN_GROUND_UNITS, KNOW
 from nuclear_engine.domain.weapons import KNOWN_WEAPONS, lookup_weapon
 from nuclear_engine.extractor.mission_scanner import MissionScanner
 from nuclear_engine.extractor.decompiler import DecompilerEngine
+from nuclear_engine.extractor.code_indexer import CodeIndexer
 from nuclear_engine.tactical_advisor.mission_analyzer import MissionAnalyzer
 from nuclear_engine.tactical_advisor.combat_math import is_in_doppler_notch, calculate_radar_horizon_km
 
 app = typer.Typer(
-    name="nuclear-engine",
-    help="Nuclear Option Tactical Intelligence, Mission Engine, and Code Explorer.",
+    name="no",
+    help="⚡ Nuclear Option Modding & Tactical Intelligence System.",
     rich_markup_mode="rich",
 )
 console = Console(legacy_windows=False)
 
 
+# ==========================================
+# 🛠️ MODDING & API COMMANDS (Token-Savers)
+# ==========================================
+
+
+@app.command()
+def api(class_name: str):
+    """[MODDING] View the clean C# API (inheritance, fields, methods) of a class without code clutter."""
+    indexer = CodeIndexer()
+    info = indexer.parse_class(class_name)
+
+    if not info:
+        console.print(f"[red]Class '{class_name}' not found. Try 'no find {class_name}' or 'no decompile'.[/red]")
+        return
+
+    # Title & Inheritance
+    inheritance = f": {info.base_class}" if info.base_class else ""
+    if info.interfaces:
+        inheritance += f", {', '.join(info.interfaces)}"
+    console.print(Panel(f"[bold cyan]class {info.name}[/bold cyan] [yellow]{inheritance}[/yellow]\n[dim]{info.path}[/dim]", expand=False))
+
+    # Fields
+    if info.fields:
+        f_table = Table(title=f"Fields ({len(info.fields)})", box=box.SIMPLE)
+        f_table.add_column("Access", style="cyan")
+        f_table.add_column("Type", style="green")
+        f_table.add_column("Name", style="bold white")
+        f_table.add_column("Line", justify="right", style="dim")
+        for f in info.fields[:20]:
+            f_table.add_row(f.access, f.type_name, f.name, str(f.line_number))
+        console.print(f_table)
+        if len(info.fields) > 20:
+            console.print(f"[dim]... and {len(info.fields) - 20} more fields.[/dim]")
+
+    # Methods
+    if info.methods:
+        m_table = Table(title=f"Methods ({len(info.methods)})", box=box.ROUNDED)
+        m_table.add_column("Access", style="cyan")
+        m_table.add_column("Return", style="green")
+        m_table.add_column("Method Name", style="bold white")
+        m_table.add_column("Parameters", style="yellow")
+        m_table.add_column("Line", justify="right", style="dim")
+
+        for m in info.methods:
+            mod_str = "static " if m.is_static else ("override " if m.is_override else "")
+            m_table.add_row(
+                f"{m.access} {mod_str}".strip(),
+                m.return_type,
+                m.name,
+                m.parameters,
+                str(m.line_number),
+            )
+        console.print(m_table)
+
+
+@app.command()
+def method(class_name: str, method_name: str):
+    """[MODDING] View ONLY the implementation of a specific method. Saves thousands of tokens!"""
+    indexer = CodeIndexer()
+    res = indexer.get_method_source(class_name, method_name)
+
+    if not res:
+        console.print(f"[red]Method '{method_name}' not found in class '{class_name}'.[/red]")
+        return
+
+    source, line_no = res
+    syntax = Syntax(source, "csharp", theme="monokai", line_numbers=True, start_line=line_no)
+    console.print(Panel(syntax, title=f"{class_name}.{method_name}() [Line {line_no}]", expand=False))
+
+
+@app.command()
+def hook(class_name: str, method_name: str, patch_type: str = "Prefix"):
+    """[MODDING] Generate a ready-to-copy C# BepInEx Harmony patch for a method."""
+    indexer = CodeIndexer()
+    snippet = indexer.generate_harmony_patch(class_name, method_name, patch_type=patch_type)
+
+    if not snippet:
+        console.print(f"[red]Could not generate hook for '{class_name}.{method_name}'. Check names.[/red]")
+        return
+
+    syntax = Syntax(snippet, "csharp", theme="monokai", line_numbers=False)
+    console.print(Panel(syntax, title=f"Harmony Patch: {class_name}.{method_name}", expand=False))
+
+
+@app.command()
+def sim(keyword: str, limit: int = 25):
+    """[MODDING] Find similar APIs / methods across all game classes to group functionality."""
+    indexer = CodeIndexer()
+    console.print(f"[bold cyan]Searching all classes for methods matching '{keyword}'...[/bold cyan]")
+    matches = indexer.search_similar_apis(keyword, max_results=limit)
+
+    if not matches:
+        console.print(f"[yellow]No methods matching '{keyword}' found.[/yellow]")
+        return
+
+    table = Table(title=f"APIs matching '{keyword}' ({len(matches)})", box=box.ROUNDED)
+    table.add_column("Class", style="bold cyan")
+    table.add_column("Method", style="bold white")
+    table.add_column("Parameters", style="yellow")
+    table.add_column("Return", style="green")
+
+    for m in matches:
+        table.add_row(m.class_name, m.name, m.parameters, m.return_type)
+
+    console.print(table)
+
+
+# ==========================================
+# 🔍 SEARCH & DECOMPILATION COMMANDS
+# ==========================================
+
+
+@app.command()
+def find(query: str, limit: int = 15):
+    """Quick search for classes or source code text across the decompiled game."""
+    engine = DecompilerEngine()
+    if not engine.is_decompiled():
+        console.print("[yellow]Code is not decompiled yet. Run 'no decompile' first.[/yellow]")
+        return
+
+    classes = engine.search_classes(query)
+    if classes:
+        console.print(f"[bold green]Matching Classes ({len(classes)}):[/bold green]")
+        for c in classes[:limit]:
+            console.print(f"  • [cyan]{c.stem}[/cyan] [dim]({c.name})[/dim]")
+
+    matches = engine.search_source_text(query, max_results=limit)
+    if matches:
+        console.print(f"\n[bold green]Text Occurrences ({len(matches)}):[/bold green]")
+        for p, line_no, line in matches:
+            console.print(f"  [dim]{p.name}:{line_no}[/dim] {line[:110]}")
+
+
+@app.command()
+def decompile(force: bool = False):
+    """Decompile Assembly-CSharp.dll into C# source code (cached)."""
+    engine = DecompilerEngine()
+    console.print("[bold cyan]Initializing decompiler...[/bold cyan]")
+    ok, msg = engine.run_decompilation(force=force)
+    if ok:
+        console.print(f"[bold green]✓ {msg}[/bold green]")
+    else:
+        console.print(f"[bold red]✗ {msg}[/bold red]")
+
+
+# ==========================================
+# 📊 MISSION & TACTICAL INTELLIGENCE
+# ==========================================
+
 
 @app.command()
 def status():
-    """Check the health and paths of the Nuclear Option installation and workspace."""
+    """Check health and paths of the game installation, BepInEx, and workspace."""
     table = Table(title="Nuclear Option System Status", box=box.ROUNDED)
     table.add_column("Component", style="cyan", no_wrap=True)
     table.add_column("Status", style="bold")
     table.add_column("Path / Details", style="dim")
 
-    # Game directory
     game_ok = config.is_game_installed()
     table.add_row(
         "Game DLL (Assembly-CSharp)",
@@ -53,7 +205,6 @@ def status():
         str(config.target_dll),
     )
 
-    # BepInEx
     bepinex_ok = config.bepinex_dir.exists()
     table.add_row(
         "BepInEx Mod Loader",
@@ -61,7 +212,6 @@ def status():
         str(config.bepinex_dir),
     )
 
-    # Mission Editor Directory
     missions_ok = config.has_user_missions()
     scanner = MissionScanner()
     m_count = len(scanner.list_missions())
@@ -71,7 +221,6 @@ def status():
         str(config.mission_editor_dir),
     )
 
-    # Decompiler cache
     decompiler = DecompilerEngine()
     decompiled_ok = decompiler.is_decompiled()
     table.add_row(
@@ -130,7 +279,6 @@ def analyze(mission_name: str):
 
     console.print(Panel(f"[bold green]Tactical Intelligence Report: {mission_name}[/bold green]\nSource: [dim]{path}[/dim]", expand=False))
 
-    # Factions and Force Balance Table
     f_table = Table(title="Force Structure by Faction", box=box.SIMPLE_HEAVY)
     f_table.add_column("Faction", style="bold")
     f_table.add_column("Fighters", justify="right", style="cyan")
@@ -152,14 +300,12 @@ def analyze(mission_name: str):
         )
     console.print(f_table)
 
-    # Objectives
     if report.objective_summaries:
         obj_tree = Tree("[bold cyan]Mission Objectives[/bold cyan]")
         for o in report.objective_summaries:
             obj_tree.add(o)
         console.print(obj_tree)
 
-    # Key Threats & Tactical Insights
     if report.key_threats or report.tactical_recommendations:
         t_panel = Tree("[bold yellow]Tactical Insights & Threats[/bold yellow]")
         for t in report.key_threats:
@@ -217,39 +363,6 @@ def weapons():
         )
 
     console.print(table)
-
-
-@app.command()
-def decompile(force: bool = False):
-    """Decompile the game's Assembly-CSharp.dll into readable C# source code."""
-    engine = DecompilerEngine()
-    console.print("[bold cyan]Initializing ILSpy decompiler...[/bold cyan]")
-    ok, msg = engine.run_decompilation(force=force)
-    if ok:
-        console.print(f"[bold green]✓ {msg}[/bold green]")
-    else:
-        console.print(f"[bold red]✗ {msg}[/bold red]")
-
-
-@app.command()
-def code(query: str, max_results: int = 20):
-    """Search for classes or text in the decompiled Nuclear Option codebase."""
-    engine = DecompilerEngine()
-    if not engine.is_decompiled():
-        console.print("[yellow]Code is not yet decompiled. Run 'nuclear-engine decompile' first.[/yellow]")
-        return
-
-    classes = engine.search_classes(query)
-    if classes:
-        console.print(f"[bold green]Found {len(classes)} matching class files:[/bold green]")
-        for c in classes[:max_results]:
-            console.print(f"  • [cyan]{c.stem}[/cyan] [dim]({c.name})[/dim]")
-
-    matches = engine.search_source_text(query, max_results=max_results)
-    if matches:
-        console.print(f"\n[bold green]Text occurrences for '{query}':[/bold green]")
-        for p, line_no, line in matches:
-            console.print(f"  [dim]{p.name}:{line_no}[/dim] {line[:120]}")
 
 
 @app.command()

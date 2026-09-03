@@ -14,51 +14,53 @@
 
 ---
 
-## 🚀 Quickstart
+## 🚀 Quickstart mit `uv`
 
-### Prerequisites
-- Python 3.10+ (Astral `uv` recommended)
-- .NET 8 / 9 (optional, for ILSpy decompilation)
-- Nuclear Option installed via Steam
-
-### Installation
-```bash
-# Setup environment & dependencies
-uv venv --python 3.12
-.venv\Scripts\activate
-uv pip install -e .
-```
-
-### CLI Commands
+Das gesamte Projekt ist für Astral **`uv`** optimiert. Du benötigst keine manuelle `venv`-Aktivierung – führe einfach alles direkt mit `uv run no` aus!
 
 ```bash
-# Check system status and game path detection
-nuclear-engine status
-
-# List all missions in your editor directory
-nuclear-engine missions
-
-# Run a deep tactical balance analysis on a mission
-nuclear-engine analyze "Boscali HQ"
-nuclear-engine analyze "Defend"
-
-# Browse unit encyclopedia
-nuclear-engine units
-nuclear-engine units --category "AirDefense"
-
-# Browse weapon encyclopedia and counter-tactics
-nuclear-engine weapons
-
-# Decompile Assembly-CSharp.dll (takes ~30s)
-nuclear-engine decompile
-
-# Search decompiled game code
-nuclear-engine code "Radar"
-nuclear-engine code "Missile"
-
-# Calculate Doppler Notch radar evasion
-nuclear-engine doppler 250 90
+# Projekt initialisieren / synchronisieren
+uv sync
 ```
+
+---
+
+## ⚡ Token-Saving Modding & API Commands (`uv run no ...`)
+
+Dieses Tool wurde speziell dafür gebaut, um beim Entwickeln von Nuclear Option Mods **zehntausende LLM-Tokens zu sparen**: Anstatt riesige 3000-Zeilen-Dateien zu durchsuchen, liefert die CLI präzise, kompakte Snippets und fertige BepInEx-Hooks:
+
+```bash
+# 1. Saubere C#-Klassen-API anzeigen (Basisklasse, Interfaces, Felder, Methoden mit Parametern & Zeilennummer)
+uv run no api Aircraft
+uv run no api Radar
+
+# 2. NUR die exakte Methoden-Implementierung ansehen (nur 10-20 Zeilen Code statt 3.000 Zeilen!)
+uv run no method Aircraft LockedByMissile
+uv run no method Radar WarningFlash
+
+# 3. Fertigen BepInEx Harmony-Patch für eine Methode generieren (Copy & Paste)
+uv run no hook Aircraft LockedByMissile
+uv run no hook Radar EstimateDetection --patch-type Postfix
+
+# 4. Ähnliche APIs über alle Klassen des Spiels suchen und bündeln
+uv run no sim "Radar"
+uv run no sim "Missile"
+uv run no sim "Fire"
+
+# 5. Schnelle Volltextsuche & Klassen-Suche im Spielcode
+uv run no find "Airfoil"
+uv run no find "Jammer"
+
+# 6. Missions-Editor Szenarien analysieren
+uv run no missions
+uv run no analyze "Boscali HQ"
+
+# 7. Spiel-Lexikon & Mechaniken
+uv run no units
+uv run no weapons
+uv run no doppler 300 90
+```
+
 
 ---
 
