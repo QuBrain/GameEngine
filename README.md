@@ -8,7 +8,8 @@ NuclearEngine is a development toolkit and code intelligence system for the comb
 
 Modding a compiled game often presents a steep barrier to entry: developers must navigate hundreds of decompiled C# source files, understand undocumented internal engine lifecycles, and master Harmony bytecode patching conventions. For beginners, this steep learning curve can easily lead to frustration; for experienced programmers, searching through thousands of lines of decompiled assemblies is repetitive and time-consuming.
 
-Artificial intelligence serves as a practical developer tool in this workflow. Using AI as an assistive coding partner is not a shortcut that replaces programming skill, but an effective way to accelerate reverse engineering, locate relevant game APIs, and clarify obscure internal logic. This toolkit was intentionally designed to support AI collaboration—providing token-efficient queries and a native Model Context Protocol (MCP) server—so that human developers and AI assistants alike can explore Nuclear Option's codebase without exceeding context windows.
+Artificial intelligence serves as a practical developer tool in this workflow. Using AI as an assistive coding partner is not a shortcut that replaces programming skill, but an effective way to accelerate reverse engineering, locate relevant game APIs, and clarify obscure internal logic. This toolkit was intentionally designed to support AI collaboration, providing token-efficient queries and a native Model Context Protocol (MCP) server so that human developers and AI assistants alike can explore Nuclear Option's codebase without exceeding context windows.
+
 
 Whether you write every line of code by hand, collaborate with an AI assistant, or are building your very first game mod, the objective of this project is to demystify the game's internal systems and make mod development accessible, transparent, and approachable for everyone.
 
