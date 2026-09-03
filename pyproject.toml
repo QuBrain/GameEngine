@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nuclear-engine"
+version = "0.1.0"
+description = "A comprehensive intelligence, analysis, and telemetry system for the game Nuclear Option."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=2.5.0",
+    "rich>=13.7.0",
+    "typer>=0.12.0",
+    "websockets>=12.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+]
+
+[project.scripts]
+nuclear-engine = "nuclear_engine.cli:app"
+
+[tool.setuptools.packages.find]
+include = ["nuclear_engine*"]
