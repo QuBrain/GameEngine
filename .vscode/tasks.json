@@ -1,0 +1,34 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "NuclearEngine: Build Mod (NuclearTelemetry)",
+      "type": "shell",
+      "command": "uv run no build NuclearTelemetry",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "NuclearEngine: Deploy Mod to Steam (NuclearTelemetry)",
+      "type": "shell",
+      "command": "uv run no deploy NuclearTelemetry",
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "NuclearEngine: Publicize Game Assemblies",
+      "type": "shell",
+      "command": "uv run no publicize",
+      "problemMatcher": []
+    },
+    {
+      "label": "NuclearEngine: Launch Nuclear Option",
+      "type": "shell",
+      "command": "uv run no run-game",
+      "problemMatcher": []
+    }
+  ]
+}

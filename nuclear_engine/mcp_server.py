@@ -1,0 +1,299 @@
+"""Native Model Context Protocol (MCP) Server for Nuclear Option Modding SDK.
+Allows AI IDEs (Antigravity IDE, Cursor, Claude Desktop, Windsurf) to natively
+call reverse-engineering and modding tools via JSON-RPC stdio.
+"""
+
+import sys
+import json
+from pathlib import Path
+from typing import Dict, Any, List
+
+from nuclear_engine.config import config
+from nuclear_engine.extractor.code_indexer import CodeIndexer
+from nuclear_engine.extractor.mission_scanner import MissionScanner
+from nuclear_engine.tactical_advisor.mission_analyzer import MissionAnalyzer
+from nuclear_engine.domain.units import KNOWN_AIRCRAFT, KNOWN_GROUND_UNITS, KNOWN_NAVAL_UNITS
+from nuclear_engine.domain.weapons import KNOWN_WEAPONS
+
+
+class NuclearMCPServer:
+    def __init__(self):
+        self.indexer = CodeIndexer()
+        self.scanner = MissionScanner()
+        self.analyzer = MissionAnalyzer()
+
+    def get_tools(self) -> List[Dict[str, Any]]:
+        return [
+            {
+                "name": "get_class_api",
+                "description": "Inspect clean C# class API (base class, interfaces, fields, methods) from Nuclear Option's 1,216 classes without whole-file token bloat.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "class_name": {"type": "string", "description": "The exact C# class name (e.g. 'Aircraft', 'Radar', 'Missile')"}
+                    },
+                    "required": ["class_name"]
+                }
+            },
+            {
+                "name": "get_method_code",
+                "description": "Extract the exact implementation source code of a method (5-30 lines) instead of reading a 3,000-line class file.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "class_name": {"type": "string", "description": "Class containing the method (e.g. 'Aircraft')"},
+                        "method_name": {"type": "string", "description": "Name of the method (e.g. 'LockedByMissile', 'TakeDamage')"}
+                    },
+                    "required": ["class_name", "method_name"]
+                }
+            },
+            {
+                "name": "generate_harmony_hook",
+                "description": "Generate a ready-to-copy C# BepInEx [HarmonyPatch] snippet with parameters and __instance.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "class_name": {"type": "string", "description": "Target class"},
+                        "method_name": {"type": "string", "description": "Target method"},
+                        "patch_type": {"type": "string", "enum": ["Prefix", "Postfix", "Transpiler"], "default": "Prefix"}
+                    },
+                    "required": ["class_name", "method_name"]
+                }
+            },
+            {
+                "name": "find_callers",
+                "description": "Find everywhere a method, event, or field is called across all 1,216 game files.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "target": {"type": "string", "description": "Method, variable, or event name to trace (e.g. 'LockedByMissile')"},
+                        "limit": {"type": "integer", "description": "Max results to return", "default": 25}
+                    },
+                    "required": ["target"]
+                }
+            },
+            {
+                "name": "find_subclasses",
+                "description": "Find all classes inheriting from a base class or interface (e.g. 'Unit', 'MonoBehaviour').",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "base_class": {"type": "string", "description": "Base class or interface name"}
+                    },
+                    "required": ["base_class"]
+                }
+            },
+            {
+                "name": "find_enums",
+                "description": "Inspect enum values inside a class or search for enum definitions globally (e.g. 'SeekerMode', 'ImpactType').",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "target": {"type": "string", "description": "Class name or enum name to inspect"}
+                    },
+                    "required": ["target"]
+                }
+            },
+            {
+                "name": "search_code",
+                "description": "Search for methods or APIs across all game classes matching a keyword.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string", "description": "Keyword to search (e.g. 'Damage', 'Radar', 'Fuel')"},
+                        "limit": {"type": "integer", "description": "Max matches", "default": 20}
+                    },
+                    "required": ["query"]
+                }
+            },
+            {
+                "name": "analyze_mission",
+                "description": "Analyze a mission scenario file for tactical threats, air superiority balance, and IADS density.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "mission_name": {"type": "string", "description": "Name of mission in MissionEditor or path to mission.json"}
+                    },
+                    "required": ["mission_name"]
+                }
+            }
+        ]
+
+    def call_tool(self, name: str, args: Dict[str, Any]) -> Any:
+        if name == "get_class_api":
+            info = self.indexer.parse_class(args["class_name"])
+            if not info:
+                return f"Class '{args['class_name']}' not found."
+            return {
+                "name": info.name,
+                "base_class": info.base_class,
+                "interfaces": info.interfaces,
+                "fields": [{"name": f.name, "type": f.type_name, "access": f.access, "line": f.line_number} for f in info.fields],
+                "methods": [{"name": m.name, "return_type": m.return_type, "params": m.parameters, "access": m.access, "line": m.line_number} for m in info.methods],
+                "structs": [{"name": s.name, "fields": s.fields, "line": s.line_number} for s in info.structs],
+                "events": [{"name": e.name, "type": e.event_type, "line": e.line_number} for e in info.events],
+                "enums": [{"name": en.name, "values": en.values, "line": en.line_number} for en in info.enums],
+            }
+
+        elif name == "get_method_code":
+            res = self.indexer.get_method_source(args["class_name"], args["method_name"])
+            if not res:
+                return f"Method '{args['method_name']}' not found in '{args['class_name']}'."
+            source, line_no = res
+            return {"source": source, "start_line": line_no, "class": args["class_name"], "method": args["method_name"]}
+
+        elif name == "generate_harmony_hook":
+            patch = self.indexer.generate_harmony_patch(args["class_name"], args["method_name"], patch_type=args.get("patch_type", "Prefix"))
+            if not patch:
+                return f"Could not generate patch for {args['class_name']}.{args['method_name']}."
+            return {"patch": patch}
+
+        elif name == "find_callers":
+            callers = self.indexer.find_callers(args["target"], limit=args.get("limit", 25))
+            return [{"class": cl, "line": ln, "snippet": sn} for cl, ln, sn in callers]
+
+        elif name == "find_subclasses":
+            subs = self.indexer.find_subclasses(args["base_class"])
+            return [{"subclass": name, "file": path.name} for name, path in subs]
+
+        elif name == "find_enums":
+            target = args["target"]
+            info = self.indexer.parse_class(target)
+            if info and info.enums:
+                return [{"name": en.name, "values": en.values, "line": en.line_number} for en in info.enums]
+            
+            # Global enum search
+            results = []
+            self.indexer._ensure_cache()
+            for path in self.indexer._class_cache.values():
+                c_info = self.indexer.parse_class(path.stem)
+                if c_info:
+                    for en in c_info.enums:
+                        if target.lower() in en.name.lower():
+                            results.append({"name": en.name, "values": en.values, "class": c_info.name, "line": en.line_number})
+            return results
+
+        elif name == "search_code":
+            matches = self.indexer.search_similar_apis(args["query"], max_results=args.get("limit", 20))
+            return [{"class": m.class_name, "method": m.name, "parameters": m.parameters, "return_type": m.return_type} for m in matches]
+
+        elif name == "analyze_mission":
+            target = args["mission_name"]
+            p = Path(target)
+            if not p.exists():
+                p = config.mission_editor_dir / target / "mission.json"
+            if not p.exists():
+                return f"Mission '{target}' not found."
+            mission = self.scanner.parse_mission(p)
+            report = self.analyzer.analyze(mission)
+            return {
+                "mission_name": report.mission_name,
+                "summary": report.summary,
+                "air_superiority_balance": report.air_superiority_balance,
+                "air_balance_score": report.air_balance_score,
+                "threat_assessments": [t.model_dump() for t in report.threat_assessments],
+                "tactical_recommendations": report.tactical_recommendations,
+            }
+
+        raise ValueError(f"Unknown tool: {name}")
+
+    def run(self):
+        """Standard JSON-RPC 2.0 stdio server loop for MCP."""
+        for line in sys.stdin:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                msg = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+
+            msg_id = msg.get("id")
+            method = msg.get("method")
+            params = msg.get("params", {})
+
+            # MCP Initialize
+            if method == "initialize":
+                resp = {
+                    "jsonrpc": "2.0",
+                    "id": msg_id,
+                    "result": {
+                        "protocolVersion": "2024-11-05",
+                        "capabilities": {
+                            "tools": {}
+                        },
+                        "serverInfo": {
+                            "name": "nuclear-option-sdk",
+                            "version": "1.0.0"
+                        }
+                    }
+                }
+                self._send(resp)
+
+            elif method == "notifications/initialized":
+                pass
+
+            # List Tools
+            elif method == "tools/list":
+                resp = {
+                    "jsonrpc": "2.0",
+                    "id": msg_id,
+                    "result": {
+                        "tools": self.get_tools()
+                    }
+                }
+                self._send(resp)
+
+            # Call Tool
+            elif method == "tools/call":
+                tool_name = params.get("name")
+                arguments = params.get("arguments", {})
+                try:
+                    result_data = self.call_tool(tool_name, arguments)
+                    text_content = json.dumps(result_data, indent=2) if not isinstance(result_data, str) else result_data
+                    resp = {
+                        "jsonrpc": "2.0",
+                        "id": msg_id,
+                        "result": {
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": text_content
+                                }
+                            ]
+                        }
+                    }
+                except Exception as e:
+                    resp = {
+                        "jsonrpc": "2.0",
+                        "id": msg_id,
+                        "error": {
+                            "code": -32603,
+                            "message": str(e)
+                        }
+                    }
+                self._send(resp)
+
+            else:
+                if msg_id is not None:
+                    self._send({
+                        "jsonrpc": "2.0",
+                        "id": msg_id,
+                        "error": {
+                            "code": -32601,
+                            "message": f"Method '{method}' not found"
+                        }
+                    })
+
+    def _send(self, obj: Dict[str, Any]):
+        sys.stdout.write(json.dumps(obj) + "\n")
+        sys.stdout.flush()
+
+
+def start_mcp_server():
+    server = NuclearMCPServer()
+    server.run()
+
+
+if __name__ == "__main__":
+    start_mcp_server()

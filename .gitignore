@@ -32,9 +32,12 @@ htmlcov/
 
 # IDE
 .idea/
-.vscode/
 *.swp
 *.swo
+.vscode/*
+!.vscode/tasks.json
+!.vscode/launch.json
+
 
 # Game decompiler cache & large binaries
 no_code_analysis/

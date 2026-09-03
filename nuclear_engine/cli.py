@@ -48,19 +48,42 @@ def tui():
 
 
 
+import json
+
+
 # ==========================================
 # 🛠️ MODDING & API COMMANDS (Token-Savers)
 # ==========================================
 
 
 @app.command()
-def api(class_name: str):
+def api(
+    class_name: str,
+    as_json: bool = typer.Option(False, "--json", "-j", help="Output results in JSON format"),
+):
     """[MODDING] View the clean C# API (inheritance, fields, methods) of a class without code clutter."""
     indexer = CodeIndexer()
     info = indexer.parse_class(class_name)
 
     if not info:
-        console.print(f"[red]Class '{class_name}' not found. Try 'no find {class_name}' or 'no decompile'.[/red]")
+        if as_json:
+            print(json.dumps({"error": f"Class '{class_name}' not found"}, indent=2))
+        else:
+            console.print(f"[red]Class '{class_name}' not found. Try 'no sim {class_name}' or 'no decompile'.[/red]")
+        return
+
+    if as_json:
+        data = {
+            "name": info.name,
+            "base_class": info.base_class,
+            "interfaces": info.interfaces,
+            "fields": [{"access": f.access, "type": f.type_name, "name": f.name, "line": f.line_number} for f in info.fields],
+            "methods": [{"access": m.access, "return": m.return_type, "name": m.name, "parameters": m.parameters, "line": m.line_number} for m in info.methods],
+            "structs": [{"name": s.name, "fields": s.fields, "line": s.line_number} for s in info.structs],
+            "events": [{"name": e.name, "type": e.event_type, "line": e.line_number} for e in info.events],
+            "enums": [{"name": en.name, "values": en.values, "line": en.line_number} for en in info.enums],
+        }
+        print(json.dumps(data, indent=2))
         return
 
     # Title & Inheritance
@@ -104,28 +127,51 @@ def api(class_name: str):
 
 
 @app.command()
-def method(class_name: str, method_name: str):
+def method(
+    class_name: str,
+    method_name: str,
+    as_json: bool = typer.Option(False, "--json", "-j", help="Output results in JSON format"),
+):
     """[MODDING] View ONLY the implementation of a specific method. Saves thousands of tokens!"""
     indexer = CodeIndexer()
     res = indexer.get_method_source(class_name, method_name)
 
     if not res:
-        console.print(f"[red]Method '{method_name}' not found in class '{class_name}'.[/red]")
+        if as_json:
+            print(json.dumps({"error": f"Method '{method_name}' not found in class '{class_name}'"}, indent=2))
+        else:
+            console.print(f"[red]Method '{method_name}' not found in class '{class_name}'.[/red]")
         return
 
     source, line_no = res
+    if as_json:
+        print(json.dumps({"class": class_name, "method": method_name, "start_line": line_no, "source": source}, indent=2))
+        return
+
     syntax = Syntax(source, "csharp", theme="monokai", line_numbers=True, start_line=line_no)
     console.print(Panel(syntax, title=f"{class_name}.{method_name}() [Line {line_no}]", expand=False))
 
 
 @app.command()
-def hook(class_name: str, method_name: str, patch_type: str = "Prefix"):
+def hook(
+    class_name: str,
+    method_name: str,
+    patch_type: str = "Prefix",
+    as_json: bool = typer.Option(False, "--json", "-j", help="Output results in JSON format"),
+):
     """[MODDING] Generate a ready-to-copy C# BepInEx Harmony patch for a method."""
     indexer = CodeIndexer()
     snippet = indexer.generate_harmony_patch(class_name, method_name, patch_type=patch_type)
 
     if not snippet:
-        console.print(f"[red]Could not generate hook for '{class_name}.{method_name}'. Check names.[/red]")
+        if as_json:
+            print(json.dumps({"error": f"Could not generate hook for '{class_name}.{method_name}'"}, indent=2))
+        else:
+            console.print(f"[red]Could not generate hook for '{class_name}.{method_name}'. Check names.[/red]")
+        return
+
+    if as_json:
+        print(json.dumps({"class": class_name, "method": method_name, "patch_type": patch_type, "patch": snippet}, indent=2))
         return
 
     syntax = Syntax(snippet, "csharp", theme="monokai", line_numbers=False)
@@ -133,12 +179,20 @@ def hook(class_name: str, method_name: str, patch_type: str = "Prefix"):
 
 
 @app.command()
-def sim(keyword: str, limit: int = 25):
+def sim(
+    keyword: str,
+    limit: int = 25,
+    as_json: bool = typer.Option(False, "--json", "-j", help="Output results in JSON format"),
+):
     """[MODDING] Find similar APIs / methods across all game classes to group functionality."""
     indexer = CodeIndexer()
-    console.print(f"[bold cyan]Searching all classes for methods matching '{keyword}'...[/bold cyan]")
     matches = indexer.search_similar_apis(keyword, max_results=limit)
 
+    if as_json:
+        print(json.dumps([{"class": m.class_name, "method": m.name, "parameters": m.parameters, "return_type": m.return_type} for m in matches], indent=2))
+        return
+
+    console.print(f"[bold cyan]Searching all classes for methods matching '{keyword}'...[/bold cyan]")
     if not matches:
         console.print(f"[yellow]No methods matching '{keyword}' found.[/yellow]")
         return
@@ -156,13 +210,20 @@ def sim(keyword: str, limit: int = 25):
 
 
 @app.command()
-def callers(target: str, limit: int = 25):
-
+def callers(
+    target: str,
+    limit: int = 25,
+    as_json: bool = typer.Option(False, "--json", "-j", help="Output results in JSON format"),
+):
     """[MODDING] Find all places in the game code where a method, field, or event is called."""
     indexer = CodeIndexer()
-    console.print(f"[bold cyan]Finding callers/references of '{target}'...[/bold cyan]")
     refs = indexer.find_callers(target, limit=limit)
 
+    if as_json:
+        print(json.dumps([{"class": c, "line": ln, "snippet": sn} for c, ln, sn in refs], indent=2))
+        return
+
+    console.print(f"[bold cyan]Finding callers/references of '{target}'...[/bold cyan]")
     if not refs:
         console.print(f"[yellow]No callers of '{target}' found.[/yellow]")
         return
@@ -179,12 +240,19 @@ def callers(target: str, limit: int = 25):
 
 
 @app.command()
-def subclasses(base_class: str):
+def subclasses(
+    base_class: str,
+    as_json: bool = typer.Option(False, "--json", "-j", help="Output results in JSON format"),
+):
     """[MODDING] Show all classes that inherit from a base class or interface (e.g. Unit, Weapon)."""
     indexer = CodeIndexer()
-    console.print(f"[bold cyan]Searching subclasses of '{base_class}'...[/bold cyan]")
     subs = indexer.find_subclasses(base_class)
 
+    if as_json:
+        print(json.dumps([{"subclass": name, "file": path.name} for name, path in subs], indent=2))
+        return
+
+    console.print(f"[bold cyan]Searching subclasses of '{base_class}'...[/bold cyan]")
     if not subs:
         console.print(f"[yellow]No classes inheriting from '{base_class}' found.[/yellow]")
         return
@@ -196,13 +264,23 @@ def subclasses(base_class: str):
 
 
 @app.command()
-def structs(class_name: str):
+def structs(
+    class_name: str,
+    as_json: bool = typer.Option(False, "--json", "-j", help="Output results in JSON format"),
+):
     """[MODDING] Show all structs defined inside a class (e.g. OnMissileWarning in MissileWarning)."""
     indexer = CodeIndexer()
     info = indexer.parse_class(class_name)
 
     if not info or not info.structs:
-        console.print(f"[yellow]No structs found in class '{class_name}'.[/yellow]")
+        if as_json:
+            print(json.dumps([], indent=2))
+        else:
+            console.print(f"[yellow]No structs found in class '{class_name}'.[/yellow]")
+        return
+
+    if as_json:
+        print(json.dumps([{"name": s.name, "fields": s.fields, "line": s.line_number} for s in info.structs], indent=2))
         return
 
     table = Table(title=f"Structs in {info.name} ({len(info.structs)})", box=box.ROUNDED)
@@ -218,13 +296,23 @@ def structs(class_name: str):
 
 
 @app.command()
-def events(class_name: str):
+def events(
+    class_name: str,
+    as_json: bool = typer.Option(False, "--json", "-j", help="Output results in JSON format"),
+):
     """[MODDING] Show all subscribable C# events in a class."""
     indexer = CodeIndexer()
     info = indexer.parse_class(class_name)
 
     if not info or not info.events:
-        console.print(f"[yellow]No events found in class '{class_name}'.[/yellow]")
+        if as_json:
+            print(json.dumps([], indent=2))
+        else:
+            console.print(f"[yellow]No events found in class '{class_name}'.[/yellow]")
+        return
+
+    if as_json:
+        print(json.dumps([{"name": e.name, "type": e.event_type, "line": e.line_number} for e in info.events], indent=2))
         return
 
     table = Table(title=f"Events in {info.name} ({len(info.events)})", box=box.ROUNDED)
@@ -239,13 +327,19 @@ def events(class_name: str):
 
 
 @app.command()
-def enums(target: str):
+def enums(
+    target: str,
+    as_json: bool = typer.Option(False, "--json", "-j", help="Output results in JSON format"),
+):
     """[MODDING] Show enums inside a class or search for an enum by name across all game classes."""
     indexer = CodeIndexer()
     info = indexer.parse_class(target)
 
     # 1. Target is a class containing enums
     if info and info.enums:
+        if as_json:
+            print(json.dumps([{"name": en.name, "values": en.values, "line": en.line_number} for en in info.enums], indent=2))
+            return
         for enum in info.enums:
             console.print(f"[bold cyan]enum {enum.name}[/bold cyan] [dim](in {info.name}, Line {enum.line_number})[/dim]")
             for val in enum.values:
@@ -253,21 +347,79 @@ def enums(target: str):
         return
 
     # 2. Target might be an enum name itself across any class
-    console.print(f"[bold cyan]Searching all classes for enum '{target}'...[/bold cyan]")
     indexer._ensure_cache()
-    found = False
+    matches = []
     for c_lower, path in indexer._class_cache.items():
         c_info = indexer.parse_class(path.stem)
         if c_info:
             for enum in c_info.enums:
                 if target.lower() in enum.name.lower():
-                    found = True
-                    console.print(f"\n[bold cyan]enum {enum.name}[/bold cyan] [dim](in {c_info.name}.cs, Line {enum.line_number})[/dim]")
-                    for val in enum.values:
-                        console.print(f"  • [yellow]{val}[/yellow]")
+                    matches.append({"name": enum.name, "values": enum.values, "class": c_info.name, "line": enum.line_number})
 
-    if not found:
+    if as_json:
+        print(json.dumps(matches, indent=2))
+        return
+
+    console.print(f"[bold cyan]Searching all classes for enum '{target}'...[/bold cyan]")
+    if not matches:
         console.print(f"[yellow]No enum matching '{target}' found.[/yellow]")
+        return
+
+    for m in matches:
+        console.print(f"\n[bold cyan]enum {m['name']}[/bold cyan] [dim](in {m['class']}.cs, Line {m['line']})[/dim]")
+        for val in m["values"]:
+            console.print(f"  • [yellow]{val}[/yellow]")
+
+
+# ==========================================
+# 🚀 SDK BUILD, DEPLOY & IDE INTEGRATION
+# ==========================================
+
+
+@app.command()
+def build(mod_name: str, configuration: str = "Release"):
+    """[SDK] Compile a C# BepInEx mod using SDK Roslyn compiler and publicized assemblies."""
+    from nuclear_engine.builder.mod_builder import ModPipeline
+    pipeline = ModPipeline()
+    console.print(f"[bold cyan]Compiling mod '{mod_name}' ({configuration})...[/bold cyan]")
+    dll = pipeline.build(mod_name, configuration=configuration)
+    console.print(f"[bold green]Build succeeded:[/bold green] {dll} ({dll.stat().st_size} bytes)")
+
+
+@app.command()
+def deploy(mod_name: str, configuration: str = "Release"):
+    """[SDK] Build and deploy mod directly into Nuclear Option's BepInEx/plugins folder."""
+    from nuclear_engine.builder.mod_builder import ModPipeline
+    pipeline = ModPipeline()
+    console.print(f"[bold cyan]Building & deploying mod '{mod_name}'...[/bold cyan]")
+    dest = pipeline.deploy(mod_name, configuration=configuration)
+    console.print(f"[bold green]Deployed successfully to Steam plugins:[/bold green] {dest}")
+
+
+@app.command(name="run-game")
+def run_game():
+    """[SDK] Launch Nuclear Option via Steam."""
+    from nuclear_engine.builder.mod_builder import ModPipeline
+    console.print("[bold green]Launching Nuclear Option via Steam...[/bold green]")
+    ModPipeline.launch_game()
+
+
+@app.command()
+def publicize():
+    """[SDK] Publicize Assembly-CSharp.dll for 100% private field autocomplete in IDEs."""
+    from nuclear_engine.extractor.publicizer import AssemblyPublicizer
+    pub = AssemblyPublicizer()
+    console.print("[bold cyan]Publicizing Nuclear Option Assembly-CSharp.dll...[/bold cyan]")
+    out_dll = pub.publicize()
+    console.print(f"[bold green]Publicized successfully:[/bold green] {out_dll} ({out_dll.stat().st_size} bytes)")
+
+
+@app.command()
+def mcp():
+    """[SDK] Start the native Model Context Protocol (MCP) server for IDE integration."""
+    from nuclear_engine.mcp_server import start_mcp_server
+    start_mcp_server()
+
 
 
 
