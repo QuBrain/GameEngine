@@ -116,8 +116,33 @@ class NuclearMCPServer:
                     },
                     "required": ["mission_name"]
                 }
+            },
+            {
+                "name": "verify_mod_patches",
+                "description": "Validate that [HarmonyPatch] attributes in a mod match actual game classes, methods, and signatures.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "mod_name": {"type": "string", "description": "Name of mod directory under plugins/"}
+                    },
+                    "required": ["mod_name"]
+                }
+            },
+            {
+                "name": "get_game_logs",
+                "description": "Read trailing logs from BepInEx mod logger or Unity Player.log.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "source": {"type": "string", "enum": ["bepinex", "player"], "default": "bepinex"},
+                        "lines": {"type": "integer", "default": 40},
+                        "errors_only": {"type": "boolean", "default": False}
+                    }
+                }
             }
+
         ]
+
 
     def call_tool(self, name: str, args: Dict[str, Any]) -> Any:
         if name == "get_class_api":
@@ -195,7 +220,35 @@ class NuclearMCPServer:
                 "tactical_recommendations": report.tactical_recommendations,
             }
 
+        elif name == "verify_mod_patches":
+            from nuclear_engine.builder.patch_verifier import PatchVerifier
+            verifier = PatchVerifier(self.indexer)
+            results = verifier.verify_mod(args["mod_name"])
+            return [
+                {
+                    "target_class": r.target_class,
+                    "target_method": r.target_method,
+                    "patch_type": r.patch_type,
+                    "status": r.status,
+                    "valid": r.is_valid,
+                    "line": r.line,
+                    "issues": [{"severity": i.severity, "message": i.message, "line": i.line} for i in r.issues],
+                }
+                for r in results
+            ]
+
+        elif name == "get_game_logs":
+            from nuclear_engine.diagnostics.log_viewer import LogViewer
+            viewer = LogViewer()
+            entries = viewer.read_entries(
+                source=args.get("source", "bepinex"),
+                lines=args.get("lines", 40),
+                errors_only=args.get("errors_only", False),
+            )
+            return [{"source": e.source, "level": e.level, "message": e.message} for e in entries]
+
         raise ValueError(f"Unknown tool: {name}")
+
 
     def run(self):
         """Standard JSON-RPC 2.0 stdio server loop for MCP."""

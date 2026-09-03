@@ -415,10 +415,137 @@ def publicize():
 
 
 @app.command()
-def mcp():
-    """[SDK] Start the native Model Context Protocol (MCP) server for IDE integration."""
-    from nuclear_engine.mcp_server import start_mcp_server
-    start_mcp_server()
+def decompile(
+    assembly: Optional[str] = typer.Argument(None, help="Target assembly name (e.g. 'Assembly-CSharp', 'Mirage', 'Rewired_Core')"),
+    force: bool = typer.Option(False, "--force", "-f", help="Force decompilation even if already present"),
+):
+    """[SDK] Decompile game assemblies into searchable C# sources."""
+    from nuclear_engine.extractor.decompiler import DecompilerEngine
+    engine = DecompilerEngine()
+    target_name = assembly or "Assembly-CSharp"
+    console.print(f"[bold cyan]Decompiling {target_name}...[/bold cyan]")
+    ok, msg = engine.run_decompilation(assembly_name=assembly, force=force)
+    if ok:
+        console.print(f"[bold green]{msg}[/bold green]")
+    else:
+        console.print(f"[bold red]Decompilation failed: {msg}[/bold red]")
+
+
+@app.command(name="verify-patches")
+def verify_patches(
+    mod_name: str,
+    as_json: bool = typer.Option(False, "--json", "-j", help="Output verification report as JSON"),
+):
+    """[SDK] Verify that [HarmonyPatch] attributes in a mod match valid game classes & methods."""
+    from nuclear_engine.builder.patch_verifier import PatchVerifier
+    verifier = PatchVerifier()
+    try:
+        results = verifier.verify_mod(mod_name)
+    except FileNotFoundError as e:
+        console.print(f"[red]{e}[/red]")
+        return
+
+    if as_json:
+        out = [
+            {
+                "target_class": r.target_class,
+                "target_method": r.target_method,
+                "patch_type": r.patch_type,
+                "status": r.status,
+                "valid": r.is_valid,
+                "file": str(r.file),
+                "line": r.line,
+                "issues": [{"severity": i.severity, "message": i.message, "line": i.line} for i in r.issues],
+            }
+            for r in results
+        ]
+        print(json.dumps(out, indent=2))
+        return
+
+    console.print(f"[bold cyan]Verifying Harmony patches in '{mod_name}'...[/bold cyan]")
+    if not results:
+        console.print("[yellow]No [HarmonyPatch] attributes detected in mod source files.[/yellow]")
+        return
+
+    table = Table(title=f"Patch Verification Report: {mod_name}", box=box.ROUNDED)
+    table.add_column("Status", justify="center")
+    table.add_column("Target Class", style="bold cyan")
+    table.add_column("Target Method", style="bold white")
+    table.add_column("Hook Type", style="magenta")
+    table.add_column("Details / Issues")
+    table.add_column("Location", style="dim")
+
+    for r in results:
+        if r.status == "PASS":
+            status_badge = "[bold green]PASS[/bold green]"
+        elif r.status == "WARN":
+            status_badge = "[bold yellow]WARN[/bold yellow]"
+        else:
+            status_badge = "[bold red]FAIL[/bold red]"
+
+        issue_text = "\n".join(f"• [{i.severity.lower()}]{i.message}[/]" for i in r.issues) or "[green]Valid signature[/green]"
+        table.add_row(status_badge, r.target_class, r.target_method, r.patch_type, issue_text, f"{r.file.name}:{r.line}")
+
+    console.print(table)
+
+
+@app.command()
+def logs(
+    source: str = typer.Option("bepinex", "--source", "-s", help="Log source: 'bepinex' (mods) or 'player' (Unity game)"),
+    lines: int = typer.Option(50, "--lines", "-n", help="Number of trailing lines to view"),
+    errors_only: bool = typer.Option(False, "--errors-only", "-e", help="Show only errors and warnings"),
+    follow: bool = typer.Option(False, "--follow", "-f", help="Follow / stream log output live"),
+    as_json: bool = typer.Option(False, "--json", "-j", help="Output log entries in JSON format"),
+):
+    """[SDK] View and stream game and BepInEx mod logs with syntax highlighting."""
+    from nuclear_engine.diagnostics.log_viewer import LogViewer
+    viewer = LogViewer()
+
+    if follow:
+        console.print(f"[bold cyan]Streaming live logs from {source}... (Press Ctrl+C to stop)[/bold cyan]")
+        try:
+            for entry in viewer.follow(source=source, errors_only=errors_only):
+                if entry.level == "ERROR":
+                    console.print(f"[red]{entry.raw}[/red]")
+                elif entry.level == "WARN":
+                    console.print(f"[yellow]{entry.raw}[/yellow]")
+                else:
+                    console.print(entry.raw)
+        except KeyboardInterrupt:
+            console.print("\n[dim]Log stream stopped.[/dim]")
+        return
+
+    entries = viewer.read_entries(source=source, lines=lines, errors_only=errors_only)
+    if as_json:
+        print(json.dumps([{"source": e.source, "level": e.level, "message": e.message} for e in entries], indent=2))
+        return
+
+    if not entries:
+        console.print(f"[yellow]No log entries found for source '{source}'.[/yellow]")
+        return
+
+    console.print(f"[bold cyan]Showing last {len(entries)} lines from {source} log:[/bold cyan]")
+    for e in entries:
+        if e.level == "ERROR":
+            console.print(f"[red]{e.raw}[/red]")
+        elif e.level == "WARN":
+            console.print(f"[yellow]{e.raw}[/yellow]")
+        elif e.level == "INFO":
+            console.print(f"[green]{e.raw}[/green]")
+        else:
+            console.print(f"[dim]{e.raw}[/dim]")
+
+
+@app.command(name="add-config")
+def add_config(mod_name: str):
+    """[SDK] Generate typed BepInEx ConfigFile boilerplate (ModConfig.cs) in a mod."""
+    from nuclear_engine.builder.config_generator import generate_config_file
+    try:
+        cfg_file = generate_config_file(mod_name)
+        console.print(f"[bold green]Created configuration template:[/bold green] {cfg_file}")
+    except FileNotFoundError as e:
+        console.print(f"[red]{e}[/red]")
+
 
 
 

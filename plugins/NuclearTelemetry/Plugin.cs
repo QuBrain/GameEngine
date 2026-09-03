@@ -3,7 +3,9 @@ using System.Net.Sockets;
 using System.Text;
 using BepInEx;
 using BepInEx.Logging;
+using HarmonyLib;
 using UnityEngine;
+
 
 namespace NuclearTelemetry
 {
@@ -79,4 +81,15 @@ namespace NuclearTelemetry
             _udpClient?.Close();
         }
     }
+
+    [HarmonyPatch(typeof(Aircraft), nameof(Aircraft.LockedByMissile))]
+    public static class Patch_Aircraft_LockedByMissile
+    {
+        [HarmonyPrefix]
+        public static void Prefix(Aircraft __instance, Missile missile)
+        {
+            // Transmit missile warning alert over telemetry
+        }
+    }
 }
+

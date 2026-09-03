@@ -82,21 +82,29 @@ class DecompilerEngine:
         except Exception as e:
             return False, f"Failed to download/setup ilspycmd: {e}"
 
-    def run_decompilation(self, force: bool = False) -> Tuple[bool, str]:
-        """Decompile the game DLL into C# source files."""
-        if not force and self.is_decompiled():
-            count = len(list(self.decompiled_dir.rglob("*.cs")))
-            return True, f"Already decompiled ({count} C# source files present in {self.decompiled_dir})."
+    def run_decompilation(self, assembly_name: Optional[str] = None, force: bool = False) -> Tuple[bool, str]:
+        """Decompile target DLL (default: Assembly-CSharp.dll) into C# source files."""
+        if assembly_name:
+            dll_filename = assembly_name if assembly_name.endswith(".dll") else f"{assembly_name}.dll"
+            target_dll = config.managed_dir / dll_filename
+            stem = Path(dll_filename).stem
+            out_dir = self.decompiled_dir / stem
+        else:
+            target_dll = self.target_dll
+            out_dir = self.decompiled_dir
 
-        ok, msg = self.check_prerequisites()
-        if not ok:
-            return False, msg
+        if not target_dll.exists():
+            return False, f"Assembly not found at: {target_dll}"
+
+        if not force and out_dir.exists() and any(out_dir.rglob("*.cs")):
+            count = len(list(out_dir.rglob("*.cs")))
+            return True, f"Already decompiled ({count} C# source files present in {out_dir})."
 
         ok, msg = self.setup_ilspycmd()
         if not ok:
             return False, msg
 
-        self.decompiled_dir.mkdir(parents=True, exist_ok=True)
+        out_dir.mkdir(parents=True, exist_ok=True)
 
         if config.ilspycmd_dll.exists():
             cmd = [
@@ -105,24 +113,24 @@ class DecompilerEngine:
                 str(config.ilspycmd_dll),
                 "-p",
                 "-o",
-                str(self.decompiled_dir),
-                str(self.target_dll),
+                str(out_dir),
+                str(target_dll),
             ]
         elif self.ilspycmd_exe.exists():
             cmd = [
                 str(self.ilspycmd_exe),
                 "-p",
                 "-o",
-                str(self.decompiled_dir),
-                str(self.target_dll),
+                str(out_dir),
+                str(target_dll),
             ]
         else:
             cmd = [
                 "ilspycmd",
                 "-p",
                 "-o",
-                str(self.decompiled_dir),
-                str(self.target_dll),
+                str(out_dir),
+                str(target_dll),
             ]
 
         try:
@@ -132,10 +140,11 @@ class DecompilerEngine:
             if res.returncode != 0:
                 return False, f"Decompiler exited with error:\n{res.stderr}"
 
-            count = len(list(self.decompiled_dir.rglob("*.cs")))
-            return True, f"Successfully decompiled {count} C# source files."
+            count = len(list(out_dir.rglob("*.cs")))
+            return True, f"Successfully decompiled {count} C# source files into {out_dir}."
         except Exception as e:
             return False, f"Failed executing decompiler: {e}"
+
 
 
     def search_classes(self, query: str) -> List[Path]:
