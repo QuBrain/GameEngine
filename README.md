@@ -5,7 +5,8 @@
 [![Package Manager](https://img.shields.io/badge/uv-Astral-DE5FE9?style=flat-square)](https://docs.astral.sh/uv/)
 [![.NET SDK](https://img.shields.io/badge/.NET-8.0%20%7C%209.0-512BD4?style=flat-square&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 [![Mod Framework](https://img.shields.io/badge/Mod%20Loader-BepInEx%205-F49342?style=flat-square)](https://github.com/BepInEx/BepInEx)
-[![Protocol](https://img.shields.io/badge/Protocol-MCP%202024--11--05-007ACC?style=flat-square)](https://modelcontextprotocol.io/)
+[![Protocol](https://img.shields.io/badge/Protocol-MCP%20Server-007ACC?style=flat-square)](https://modelcontextprotocol.io/)
+
 [![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)](https://microsoft.com/windows)
 [![Test Suite](https://img.shields.io/badge/Tests-27%20passed-2ea44f?style=flat-square)](https://docs.pytest.org/)
 
