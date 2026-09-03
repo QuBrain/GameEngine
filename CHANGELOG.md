@@ -7,14 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.3.0] - 2026-09-04
+## [0.3.2] - 2026-09-04
 
 ### Added
-- **NOMM Compatibility:** Upgraded `no pack` to produce dual-compatible packages supporting Nuclear Option Mod Manager (NOMM), the NOMNOM manifest registry (`nomnom.json`), and Thunderstore (`manifest.json`, `icon.png`, `BepInEx/plugins/<ModName>/` directory structure).
-- **Mission Validator and Scenario Linter (`no validate-mission`):** Statically checks `mission.json` files for undeclared faction assignments, underwater or subterranean spawns, missing objective target IDs, and invalid airbase coordinates.
-- **Harmony CIL OpCode Inspector (`no il`):** Disassembles game methods to raw CIL bytecode instructions with offsets and operands. Includes `--matcher` flag to generate ready-to-use Harmony `CodeMatcher` boilerplate for transpiler development.
-- **Aircraft Livery and Texture Scaffolder (`no new-livery`):** Automates custom aircraft skin package generation (`skins/<Vehicle>/<SkinName>/`) including `livery.json` metadata, texture placement guides, and a C# BepInEx runtime loader plugin.
-- **Performance and Anti-Stutter Code Auditor (`no audit`):** Statically scans mod C# source code for simulation frame-drop hazards, including `FindObjectsOfType` in `Update()`, un-cached `GetComponent` calls, per-frame LINQ heap allocations, and blocking synchronous file or network I/O.
 - **IDE F12 Decompilation Navigation:** Enabled `omnisharp.enableDecompilationSupport` in `.vscode/settings.json`, allowing developers to press F12 on any game type or method (`Aircraft`, `CombatHUD`, `LockedByMissile`) to decompile and browse the original C# source code directly inside the IDE without needing dnSpy.
 - **Automated Harmony Patch Generator (`no patch`):** Scaffolds 100% typed, compilable Harmony patch classes (`Prefix`, `Postfix`, `Transpiler` with `CodeMatcher`) directly from real in-game signatures.
 - **Rich In-Editor XML Docstrings:** Expanded `Assembly-CSharp.xml` with detailed summaries for 35+ core game systems, fields, and events for instant hover explanations.
@@ -23,9 +18,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Automated Test Suite Expansion:** Added comprehensive test coverage in `tests/test_patch_generator.py`, bringing the test suite to 52 passing unit tests.
 
 ### Fixed
+- **IDE Documentation and Tooltip Localization:** Disabled localized German satellite resource assemblies in the C# extension runtime and configured `DOTNET_CLI_UI_LANGUAGE=en` and `VSLANG=1033` variables, ensuring all hover tooltips, type signatures, and compiler diagnostics display strictly in English across non-English host environments.
+
+---
+
+## [0.3.0] - 2026-09-04
+
+### Added
+- **NOMM Compatibility:** Upgraded `no pack` to produce dual-compatible packages supporting Nuclear Option Mod Manager (NOMM), the NOMNOM manifest registry (`nomnom.json`), and Thunderstore (`manifest.json`, `icon.png`, `BepInEx/plugins/<ModName>/` directory structure).
+- **Mission Validator and Scenario Linter (`no validate-mission`):** Statically checks `mission.json` files for undeclared faction assignments, underwater or subterranean spawns, missing objective target IDs, and invalid airbase coordinates.
+- **Harmony CIL OpCode Inspector (`no il`):** Disassembles game methods to raw CIL bytecode instructions with offsets and operands. Includes `--matcher` flag to generate ready-to-use Harmony `CodeMatcher` boilerplate for transpiler development.
+- **Aircraft Livery and Texture Scaffolder (`no new-livery`):** Automates custom aircraft skin package generation (`skins/<Vehicle>/<SkinName>/`) including `livery.json` metadata, texture placement guides, and a C# BepInEx runtime loader plugin.
+- **Performance and Anti-Stutter Code Auditor (`no audit`):** Statically scans mod C# source code for simulation frame-drop hazards, including `FindObjectsOfType` in `Update()`, un-cached `GetComponent` calls, per-frame LINQ heap allocations, and blocking synchronous file or network I/O.
+- **Model Context Protocol (MCP) Integration:** Added 4 native reverse engineering tools (`validate_mission_scenario`, `get_method_il`, `create_aircraft_livery`, `audit_mod_performance`), reaching 19 MCP tools.
+- **Unit Test Coverage:** Added automated test suite in `tests/test_advanced_toolchain.py` verifying validator, IL inspector, livery scaffolder, and performance auditor with 44 passing tests.
+
+### Fixed
 - **OmniSharp Path Configuration:** Corrected `omnisharp.dotnetPath` in `.vscode/settings.json` and global IDE configuration to point to the .NET installation folder instead of executable name, eliminating `spawn UNKNOWN` errors.
 - **Environment PATH Hardening:** Added `.NET` runtime directory (`C:\Program Files\dotnet`) to the user environment PATH variable for seamless child process execution.
-- **IDE Documentation and Tooltip Localization:** Disabled localized German satellite resource assemblies in the C# extension runtime and configured `DOTNET_CLI_UI_LANGUAGE=en` and `VSLANG=1033` variables, ensuring all hover tooltips, type signatures, and compiler diagnostics display strictly in English across non-English host environments.
 
 ---
 

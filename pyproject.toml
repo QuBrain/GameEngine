@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nuclear-engine"
-version = "0.3.0"
+version = "0.3.2"
 description = "A comprehensive intelligence, analysis, and telemetry system for the game Nuclear Option."
 
 
