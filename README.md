@@ -8,7 +8,8 @@
 [![Protocol](https://img.shields.io/badge/Protocol-MCP%20Server-007ACC?style=flat-square)](https://modelcontextprotocol.io/)
 
 [![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)](https://microsoft.com/windows)
-[![Test Suite](https://img.shields.io/badge/Tests-33%20passed-2ea44f?style=flat-square)](https://docs.pytest.org/)
+[![Test Suite](https://img.shields.io/badge/Tests-39%20passed-2ea44f?style=flat-square)](https://docs.pytest.org/)
+
 
 
 NuclearEngine is a development toolkit and code intelligence system for the combat flight simulator [Nuclear Option](https://store.steampowered.com/app/2158680/Nuclear_Option/). It provides reverse engineering tools, a token-efficient code indexer, automated BepInEx mod scaffolding, compilation and deployment pipelines, and a Model Context Protocol (MCP) server for integration with development environments.
@@ -182,13 +183,24 @@ uv run no pack CombatTracker --json
 
 Output is written to `dist/<ModName>_<Version>.zip` ready for upload to Thunderstore or r2modman.
 
-### 7. Launch Game
+### 7. Hot-Reload File Watcher
+ 
+Automatically watch mod source files and trigger instantaneous recompilation and deployment upon saving:
+
+```bash
+uv run no watch CombatTracker
+```
+
+The watcher recompiles with publicized assemblies and deploys the resulting DLL to Steam BepInEx plugins in under 600 ms.
+
+### 8. Launch Game
 
 ```bash
 uv run no run-game
 ```
 
 Launches Nuclear Option through Steam protocol.
+
 
 
 ---
@@ -356,15 +368,81 @@ Render a 2D radar plot of airbases, factories, SAM batteries, and naval units fr
 
 ```bash
 # Render terminal ASCII radar map
-uv run no mission-map "Boscali HQ"
+uv run no mission-map "Defend"
 
 # Export vector SVG tactical map
-uv run no mission-map "Boscali HQ" --svg
+uv run no mission-map "Defend" --svg
+
+# Generate interactive HTML Tactical War Room map with live contact inspection
+uv run no mission-map "Defend" --web
+```
+
+---
+
+## Multiplayer and Network RPC Inspector
+
+Inspect Mirage networking endpoints, remote procedure calls, and synchronized variables across the game:
+
+```bash
+# List all RPCs and SyncVars in the Aircraft class
+uv run no rpc Aircraft
+
+# Find all ServerRpc endpoints involving missile locks or launches
+uv run no rpc --type ServerRpc -q Lock
+
+# Output complete network RPC schema as JSON
+uv run no rpc --json
+```
+
+---
+
+## Programmatic Mission Scenario Generator
+
+Generate complete, valid `mission.json` scenarios with airbases, aircraft spawns, weapon loadouts, and objectives directly into Nuclear Option's MissionEditor:
+
+```bash
+# Generate dogfight skirmish scenario (Player Revoker vs 2 AI bandits)
+uv run no new-mission "AlphaInterception" --preset dogfight
+
+# Generate precision strike scenario against radar and SAM defense network
+uv run no new-mission "RadarStrike" --preset strike
+
+# Generate anti-ship naval interdiction scenario
+uv run no new-mission "ConvoyHunt" --preset naval_patrol
+```
+
+---
+
+## Audio and Voice Warning Catalog
+
+Inspect game sound effects, SoundManager triggers, and cockpit voice alert hooks:
+
+```bash
+# List all cockpit voice warnings (stall, overspeed, gear warnings)
+uv run no audio --category VoiceWarning
+
+# List sound effects associated with weapons or combat HUD
+uv run no audio --class CombatHUD
+
+# Output all audio hooks as JSON
+uv run no audio --json
+```
+
+---
+
+## Real-Time Flight Telemetry
+
+Sample live UDP flight telemetry broadcast by the `NuclearTelemetry` mod on port 8766:
+
+```bash
+# Sample live telemetry packets and display cockpit HUD
+uv run no telemetry --port 8766 --packets 20
 ```
 
 ---
 
 ## Directory Structure
+
 
 
 ```

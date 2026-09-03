@@ -805,6 +805,144 @@ def mission_map(
     console.print(renderer.render_ascii(width=width, height=height))
 
 
+@app.command()
+def watch(mod_name: str, interval: float = typer.Option(0.5, "--interval", "-i", help="Poll interval in seconds")):
+    """[DEV] Watch mod source files and auto-rebuild + deploy to BepInEx on change."""
+    from nuclear_engine.builder.watcher import ModWatcher
+    watcher = ModWatcher(mod_name, poll_interval=interval)
+    watcher.watch()
+
+
+@app.command()
+def rpc(
+    target_class: Optional[str] = typer.Argument(None, help="Filter by class name (e.g. Aircraft, Player)"),
+    rpc_type: Optional[str] = typer.Option(None, "--type", "-t", help="Filter by RPC type: ServerRpc, ClientRpc, TargetRpc, SyncVar"),
+    query: Optional[str] = typer.Option(None, "--query", "-q", help="Search in method names and parameters"),
+    as_json: bool = typer.Option(False, "--json", "-j", help="Output results as JSON"),
+):
+    """[NETWORK] Inspect Mirage multiplayer RPCs and SyncVars in decompiled code."""
+    from nuclear_engine.extractor.rpc_inspector import RPCInspector
+    inspector = RPCInspector()
+    results = inspector.query(class_filter=target_class, rpc_type=rpc_type, search_query=query)
+
+    if as_json:
+        print(json.dumps([
+            {
+                "type": r.endpoint_type,
+                "class": r.declaring_class,
+                "name": r.name,
+                "parameters": r.parameters,
+                "attributes": r.attributes,
+                "file": r.file_name,
+                "line": r.line_number,
+            }
+            for r in results
+        ], indent=2))
+        return
+
+    if not results:
+        console.print("[yellow]No network RPCs or SyncVars matching criteria.[/yellow]")
+        return
+
+    table = Table(title=f"Mirage Multiplayer Endpoints ({len(results)})", box=box.ROUNDED)
+    table.add_column("Type", style="bold yellow")
+    table.add_column("Class", style="bold cyan")
+    table.add_column("Name / Method", style="bold white")
+    table.add_column("Parameters / Type", style="dim")
+    table.add_column("Line", justify="right")
+
+    for r in results[:40]:
+        table.add_row(r.endpoint_type, r.declaring_class, r.name, r.parameters, str(r.line_number))
+
+    console.print(table)
+    if len(results) > 40:
+        console.print(f"[dim]Showing 40 of {len(results)} endpoints. Use --json or filter with arguments.[/dim]")
+
+
+@app.command(name="new-mission")
+def new_mission(
+    name: str,
+    preset: str = typer.Option("dogfight", "--preset", "-p", help="Scenario preset: dogfight, strike, naval_patrol"),
+    player_faction: str = typer.Option("Boscali", "--player", help="Player faction name"),
+    enemy_faction: str = typer.Option("Primeva", "--enemy", help="Enemy faction name"),
+):
+    """[SCENARIO] Programmatically generate a ready-to-play mission scenario in MissionEditor."""
+    from nuclear_engine.domain.mission_generator import MissionFactory
+    path = MissionFactory.save_to_mission_editor(
+        mission_name=name,
+        preset=preset.lower(),
+        player_faction=player_faction,
+        enemy_faction=enemy_faction,
+    )
+    console.print(f"[bold green]Mission '{name}' successfully created:[/bold green]")
+    console.print(f"  File: [cyan]{path}[/cyan]")
+    console.print(f"  Preset: [yellow]{preset}[/yellow] | Factions: {player_faction} vs {enemy_faction}")
+    console.print("[dim]Open in Nuclear Option's Mission Editor or launch with 'no run-game'.[/dim]")
+
+
+@app.command()
+def audio(
+    category: Optional[str] = typer.Option(None, "--category", "-c", help="Filter by category: VoiceWarning, Interface, Effects, Alert"),
+    class_filter: Optional[str] = typer.Option(None, "--class", help="Filter by declaring class"),
+    query: Optional[str] = typer.Option(None, "--query", "-q", help="Search query"),
+    as_json: bool = typer.Option(False, "--json", "-j", help="Output results as JSON"),
+):
+    """[AUDIO] Inspect game sound effects, SoundManager hooks, and cockpit voice warnings."""
+    from nuclear_engine.extractor.audio_inspector import AudioInspector
+    inspector = AudioInspector()
+    results = inspector.query(category=category, class_filter=class_filter, search_query=query)
+
+    if as_json:
+        print(json.dumps([
+            {
+                "category": a.category,
+                "class": a.class_name,
+                "event": a.event_name,
+                "mixer": a.mixer_group,
+                "method": a.trigger_method,
+                "line": a.line_number,
+            }
+            for a in results
+        ], indent=2))
+        return
+
+    if not results:
+        console.print("[yellow]No audio events matching criteria.[/yellow]")
+        return
+
+    table = Table(title=f"Game Audio Events ({len(results)})", box=box.ROUNDED)
+    table.add_column("Category", style="bold yellow")
+    table.add_column("Class", style="bold cyan")
+    table.add_column("Event / Clip", style="bold white")
+    table.add_column("Mixer Group", style="green")
+    table.add_column("Trigger Method", style="dim")
+
+    for a in results[:35]:
+        table.add_row(a.category, a.class_name, a.event_name, a.mixer_group, a.trigger_method)
+
+    console.print(table)
+    if len(results) > 35:
+        console.print(f"[dim]Showing 35 of {len(results)} audio hooks. Use --json or filter with arguments.[/dim]")
+
+
+@app.command()
+def telemetry(
+    port: int = typer.Option(8766, "--port", "-p", help="UDP listening port"),
+    packets: int = typer.Option(10, "--packets", "-n", help="Number of telemetry packets to sample"),
+):
+    """[INTEL] Sample real-time UDP flight telemetry from NuclearTelemetry mod."""
+    from nuclear_engine.telemetry.server import TelemetryServer
+    server = TelemetryServer(udp_port=port)
+    console.print(f"[bold cyan]Listening for UDP telemetry on 127.0.0.1:{port} (waiting for game)...[/bold cyan]")
+    try:
+        server.listen_udp_sync(max_packets=packets, timeout=2.0)
+        console.print(server.render_hud())
+    except Exception as e:
+        console.print(f"[yellow]No telemetry stream detected: {e}[/yellow]")
+        console.print("[dim]Launch Nuclear Option with the NuclearTelemetry mod to stream live flight data.[/dim]")
+
+
+
 
 
 

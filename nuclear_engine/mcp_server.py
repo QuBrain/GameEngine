@@ -163,8 +163,47 @@ class NuclearMCPServer:
                     },
                     "required": ["mission_name"]
                 }
+            },
+            {
+                "name": "get_network_rpcs",
+                "description": "Query Mirage multiplayer RPCs (ServerRpc, ClientRpc, TargetRpc) and SyncVars.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "class_name": {"type": "string", "description": "Filter by class name (e.g. Aircraft, Player)"},
+                        "rpc_type": {"type": "string", "description": "Filter by RPC type (ServerRpc, ClientRpc, SyncVar)"},
+                        "query": {"type": "string", "description": "Search keyword in method name or parameter"}
+                    }
+                }
+            },
+            {
+                "name": "create_mission_scenario",
+                "description": "Programmatically generate a new valid mission.json scenario in MissionEditor.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string", "description": "Mission name"},
+                        "preset": {"type": "string", "enum": ["dogfight", "strike", "naval_patrol"], "default": "dogfight"},
+                        "player_faction": {"type": "string", "default": "Boscali"},
+                        "enemy_faction": {"type": "string", "default": "Primeva"}
+                    },
+                    "required": ["name"]
+                }
+            },
+            {
+                "name": "get_audio_events",
+                "description": "Inspect game sound effects, SoundManager calls, and cockpit voice warnings.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "category": {"type": "string", "description": "VoiceWarning, Interface, Effects, Alert"},
+                        "class_name": {"type": "string", "description": "Filter by class name"},
+                        "query": {"type": "string", "description": "Search keyword"}
+                    }
+                }
             }
         ]
+
 
 
 
@@ -298,7 +337,58 @@ class NuclearMCPServer:
             renderer = TacticalMapRenderer(mission)
             return renderer.render_ascii(width=args.get("width", 60), height=args.get("height", 24))
 
+        elif name == "get_network_rpcs":
+            from nuclear_engine.extractor.rpc_inspector import RPCInspector
+            inspector = RPCInspector()
+            results = inspector.query(
+                class_filter=args.get("class_name"),
+                rpc_type=args.get("rpc_type"),
+                search_query=args.get("query"),
+            )
+            return [
+                {
+                    "type": r.endpoint_type,
+                    "class": r.declaring_class,
+                    "name": r.name,
+                    "parameters": r.parameters,
+                    "attributes": r.attributes,
+                    "line": r.line_number,
+                }
+                for r in results
+            ]
+
+        elif name == "create_mission_scenario":
+            from nuclear_engine.domain.mission_generator import MissionFactory
+            path = MissionFactory.save_to_mission_editor(
+                mission_name=args["name"],
+                preset=args.get("preset", "dogfight"),
+                player_faction=args.get("player_faction", "Boscali"),
+                enemy_faction=args.get("enemy_faction", "Primeva"),
+            )
+            return {"status": "created", "path": str(path), "name": args["name"]}
+
+        elif name == "get_audio_events":
+            from nuclear_engine.extractor.audio_inspector import AudioInspector
+            inspector = AudioInspector()
+            results = inspector.query(
+                category=args.get("category"),
+                class_filter=args.get("class_name"),
+                search_query=args.get("query"),
+            )
+            return [
+                {
+                    "category": a.category,
+                    "class": a.class_name,
+                    "event": a.event_name,
+                    "mixer": a.mixer_group,
+                    "method": a.trigger_method,
+                    "line": a.line_number,
+                }
+                for a in results
+            ]
+
         raise ValueError(f"Unknown tool: {name}")
+
 
 
 

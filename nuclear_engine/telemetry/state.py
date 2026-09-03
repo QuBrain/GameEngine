@@ -43,8 +43,12 @@ class TelemetryState:
     master_arm: bool = False
     flare_count: int = 0
     chaff_count: int = 0
+    position_x: float = 0.0
+    position_y: float = 0.0
+    position_z: float = 0.0
     contacts: List[RadarContact] = field(default_factory=list)
     rwr_threats: List[RWRWarning] = field(default_factory=list)
+
 
     @property
     def has_incoming_missile(self) -> bool:
