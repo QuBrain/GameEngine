@@ -51,6 +51,9 @@ no_code_analysis/
 docs/api/
 dist/
 *.zip
+*_map.html
+*_map.svg
+
 
 *.bin
 

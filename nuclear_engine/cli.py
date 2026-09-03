@@ -768,6 +768,7 @@ def docs():
 @app.command(name="mission-map")
 def mission_map(
     mission_name: str,
+    web: bool = typer.Option(False, "--web", "--html", help="Generate interactive HTML tactical map with unit details"),
     svg: bool = typer.Option(False, "--svg", help="Export vector SVG map to file"),
     width: int = typer.Option(60, "--width", "-w", help="ASCII grid width"),
     height: int = typer.Option(24, "--height", "-h", help="ASCII grid height"),
@@ -785,6 +786,14 @@ def mission_map(
     path, mission = res
     renderer = TacticalMapRenderer(mission)
 
+    if web:
+        html_content = renderer.render_interactive_html(mission_name)
+        out_html = config.workspace_root / f"{mission_name.replace(' ', '_')}_map.html"
+        out_html.write_text(html_content, encoding="utf-8")
+        console.print(f"[bold green]Interactive Tactical War Room Map generated:[/bold green]\n  {out_html}")
+        console.print(f"[dim]Total contacts plotted: {len(renderer.points)} (Airbases, SAM sites, Armor, Warships, Structures)[/dim]")
+        return
+
     if svg:
         svg_content = renderer.render_svg()
         out_svg = config.workspace_root / f"{mission_name.replace(' ', '_')}_map.svg"
@@ -794,6 +803,7 @@ def mission_map(
 
     console.print(f"[bold cyan]Tactical Map: {mission_name}[/bold cyan]")
     console.print(renderer.render_ascii(width=width, height=height))
+
 
 
 
