@@ -1,0 +1,16 @@
+<Project>
+  <!-- Generate minimal assets manifest to allow direct dotnet build without NuGet server dependencies -->
+  <Target Name="EnsureAssetsJson" BeforeTargets="_CheckForInvalidConfigurationAndPlatform;ResolvePackageAssets">
+    <PropertyGroup>
+      <ProjectAssetsFile Condition="'$(ProjectAssetsFile)' == ''">$(BaseIntermediateOutputPath)project.assets.json</ProjectAssetsFile>
+      <ProjectAssetsFile Condition="'$(ProjectAssetsFile)' == ''">$(MSBuildProjectDirectory)\obj\project.assets.json</ProjectAssetsFile>
+    </PropertyGroup>
+    <MakeDir Directories="$(MSBuildProjectDirectory)\obj" Condition="!Exists('$(MSBuildProjectDirectory)\obj')" />
+    <WriteLinesToFile
+      File="$(ProjectAssetsFile)"
+      Lines='{"version":3,"targets":{".NETStandard,Version=v2.1":{}},"libraries":{},"projectFileDependencyGroups":{".NETStandard,Version=v2.1":[]},"packageFolders":{},"project":{"version":"1.0.0","restore":{"projectUniqueName":"$(MSBuildProjectName)","projectName":"$(MSBuildProjectName)"}}}'
+      Overwrite="true"
+      Condition="!Exists('$(ProjectAssetsFile)')" />
+
+  </Target>
+</Project>

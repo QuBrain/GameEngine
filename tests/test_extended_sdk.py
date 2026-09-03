@@ -89,3 +89,23 @@ def test_mcp_server_extended_tools():
     # Call get_game_logs
     logs = server.call_tool("get_game_logs", {"source": "bepinex", "lines": 5})
     assert isinstance(logs, list)
+
+
+def test_ide_synchronization():
+    from nuclear_engine.builder.ide_sync import IDESync
+    sync = IDESync()
+    res = sync.sync_all()
+    assert res["sln"].exists()
+    assert res["xml_docs"].exists()
+    assert res["settings"].exists()
+    assert res["extensions"].exists()
+
+    # Check solution file contents
+    sln_text = res["sln"].read_text(encoding="utf-8")
+    assert "NuclearTelemetry" in sln_text
+
+    # Check XML docstrings file
+    xml_text = res["xml_docs"].read_text(encoding="utf-8")
+    assert "<summary>" in xml_text
+    assert "LockedByMissile" in xml_text
+

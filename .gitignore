@@ -37,6 +37,9 @@ htmlcov/
 .vscode/*
 !.vscode/tasks.json
 !.vscode/launch.json
+!.vscode/settings.json
+!.vscode/extensions.json
+
 
 
 # Game decompiler cache & large binaries

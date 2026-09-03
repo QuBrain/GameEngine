@@ -547,7 +547,16 @@ def add_config(mod_name: str):
         console.print(f"[red]{e}[/red]")
 
 
-
+@app.command(name="sync-ide")
+def sync_ide():
+    """[SDK] Synchronize Visual Studio / Rider solution (.sln), VS Code settings, and IntelliSense docstrings."""
+    from nuclear_engine.builder.ide_sync import IDESync
+    sync = IDESync()
+    res = sync.sync_all()
+    console.print(f"[bold green]Generated Master Solution:[/bold green] {res['sln']}")
+    console.print(f"[bold green]Generated XML Docstrings:[/bold green] {res['xml_docs']}")
+    console.print(f"[bold green]Updated VS Code Settings:[/bold green] {res['settings']}")
+    console.print(f"[bold green]Updated Extension Recommendations:[/bold green] {res['extensions']}")
 
 
 @app.command(name="new-mod")
@@ -560,7 +569,7 @@ def new_mod(mod_name: str):
 
     mod_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1. Create .csproj
+    # 1. Create clean .csproj (inherits full references from Directory.Build.props)
     csproj_content = f"""<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
@@ -569,23 +578,6 @@ def new_mod(mod_name: str):
     <Version>1.0.0</Version>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
-
-  <PropertyGroup>
-    <GameDir>{config.game_dir}</GameDir>
-    <ManagedDir>$(GameDir)\\NuclearOption_Data\\Managed</ManagedDir>
-    <BepInExDir>$(GameDir)\\BepInEx\\core</BepInExDir>
-  </PropertyGroup>
-
-  <ItemGroup Condition="Exists('$(BepInExDir)')">
-    <Reference Include="0Harmony"><HintPath>$(BepInExDir)\\0Harmony.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="BepInEx"><HintPath>$(BepInExDir)\\BepInEx.dll</HintPath><Private>false</Private></Reference>
-  </ItemGroup>
-
-  <ItemGroup Condition="Exists('$(ManagedDir)')">
-    <Reference Include="UnityEngine"><HintPath>$(ManagedDir)\\UnityEngine.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.CoreModule"><HintPath>$(ManagedDir)\\UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="Assembly-CSharp"><HintPath>$(ManagedDir)\\Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
-  </ItemGroup>
 </Project>
 """
     with open(mod_dir / f"{mod_name}.csproj", "w", encoding="utf-8") as f:
@@ -629,10 +621,13 @@ namespace {mod_name}
     with open(mod_dir / "Plugin.cs", "w", encoding="utf-8") as f:
         f.write(plugin_content)
 
-    console.print(f"[bold green]✓ Successfully scaffolded mod '{mod_name}' at:[/bold green]")
-    console.print(f"  [cyan]{mod_dir}[/cyan]")
-    console.print(f"\n[dim]To compile with dotnet:[/dim]")
-    console.print(f"  [bold]dotnet build plugins/{mod_name}[/bold]")
+    # 3. Synchronize Solution and IDE settings
+    from nuclear_engine.builder.ide_sync import IDESync
+    IDESync().sync_all()
+
+    console.print(f"[bold green]✓ Successfully scaffolded mod '{mod_name}' at:[/bold green]\n  {mod_dir}")
+    console.print(f"\n[dim]To compile:[/dim]\n  uv run no build {mod_name}")
+    console.print(f"[dim]To deploy to Steam:[/dim]\n  uv run no deploy {mod_name}")
 
 
 
