@@ -2,8 +2,6 @@
 
 If you are developing BepInEx mods or custom missions for Nuclear Option, this SDK provides an automated development environment with IDE autocomplete for game code, hot-reload compilation, patch validation, and inspection tools.
 
-Repository: https://github.com/Username/NuclearOption-SDK
-
 ## What You Can Do With It
 
 - **Write C# mods with full IDE IntelliSense:** Automatically decompiles and publicizes Assembly-CSharp, Mirage (multiplayer), and Rewired (input). VS Code and Rider will autocomplete internal game classes (Aircraft, CombatHUD, RadarWarning, Missile) with hover docstrings.
