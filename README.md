@@ -8,7 +8,8 @@
 [![Protocol](https://img.shields.io/badge/Protocol-MCP%20Server-007ACC?style=flat-square)](https://modelcontextprotocol.io/)
 
 [![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)](https://microsoft.com/windows)
-[![Test Suite](https://img.shields.io/badge/Tests-27%20passed-2ea44f?style=flat-square)](https://docs.pytest.org/)
+[![Test Suite](https://img.shields.io/badge/Tests-33%20passed-2ea44f?style=flat-square)](https://docs.pytest.org/)
+
 
 NuclearEngine is a development toolkit and code intelligence system for the combat flight simulator [Nuclear Option](https://store.steampowered.com/app/2158680/Nuclear_Option/). It provides reverse engineering tools, a token-efficient code indexer, automated BepInEx mod scaffolding, compilation and deployment pipelines, and a Model Context Protocol (MCP) server for integration with development environments.
 
@@ -170,13 +171,25 @@ Add a typed BepInEx configuration boilerplate (`ModConfig.cs`) to your mod:
 uv run no add-config CombatTracker
 ```
 
-### 6. Launch Game
+### 6. Package for Thunderstore / Distribution
+
+Package your mod into a distribution zip archive containing `manifest.json`, `icon.png`, `README.md`, and compiled binaries:
+
+```bash
+uv run no pack CombatTracker
+uv run no pack CombatTracker --json
+```
+
+Output is written to `dist/<ModName>_<Version>.zip` ready for upload to Thunderstore or r2modman.
+
+### 7. Launch Game
 
 ```bash
 uv run no run-game
 ```
 
 Launches Nuclear Option through Steam protocol.
+
 
 ---
 
@@ -308,7 +321,51 @@ uv run no doppler 250 85
 
 ---
 
+## Airframe and Hardpoint Intelligence
+
+Inspect vehicle performance, radar cross sections (RCS), countermeasure reserves, and weapon station layouts:
+
+```bash
+# List all indexed vehicles and flight metrics
+uv run no vehicles
+
+# Inspect Revoker fighter specifications and hardpoint stations
+uv run no vehicle revoker
+
+# Inspect stealth bomber hardpoints and loadout compatibility in JSON format
+uv run no vehicle darkreach --json
+```
+
+---
+
+## Offline API Documentation
+
+Generate a standalone, client-side searchable HTML and JSON documentation portal for all 1,200+ decompiled game classes:
+
+```bash
+uv run no docs
+```
+
+The documentation is written to `docs/api/index.html` and can be opened in any web browser completely offline.
+
+---
+
+## Tactical Mission Map
+
+Render a 2D radar plot of airbases, factories, SAM batteries, and naval units from mission scenarios:
+
+```bash
+# Render terminal ASCII radar map
+uv run no mission-map "Boscali HQ"
+
+# Export vector SVG tactical map
+uv run no mission-map "Boscali HQ" --svg
+```
+
+---
+
 ## Directory Structure
+
 
 ```
 GameEngine/
