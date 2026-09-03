@@ -201,8 +201,57 @@ class NuclearMCPServer:
                         "query": {"type": "string", "description": "Search keyword"}
                     }
                 }
+            },
+            {
+                "name": "validate_mission_scenario",
+                "description": "Validate a mission scenario for missing factions, ground collisions, and broken targets.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "target": {"type": "string", "description": "Mission name in MissionEditor or path to mission.json"}
+                    },
+                    "required": ["target"]
+                }
+            },
+            {
+                "name": "get_method_il",
+                "description": "Disassemble class and method to raw CIL bytecode instructions and generate Harmony CodeMatcher transpiler.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "class_name": {"type": "string", "description": "Class name (e.g. RadarWarning)"},
+                        "method_name": {"type": "string", "description": "Method name (e.g. Start)"},
+                        "include_matcher": {"type": "boolean", "description": "Whether to generate Harmony CodeMatcher template"}
+                    },
+                    "required": ["class_name", "method_name"]
+                }
+            },
+            {
+                "name": "create_aircraft_livery",
+                "description": "Scaffold a custom aircraft skin package and BepInEx runtime texture loader.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "vehicle": {"type": "string", "description": "Aircraft name (e.g. Revoker, Cricket)"},
+                        "skin_name": {"type": "string", "description": "Skin name (e.g. GhostSquadron)"},
+                        "author": {"type": "string", "description": "Author name"}
+                    },
+                    "required": ["vehicle", "skin_name"]
+                }
+            },
+            {
+                "name": "audit_mod_performance",
+                "description": "Audit BepInEx mod source code for performance traps, GC allocations in Update, and stutter hazards.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "mod_name": {"type": "string", "description": "Mod directory name in plugins/ (e.g. NuclearTelemetry)"}
+                    },
+                    "required": ["mod_name"]
+                }
             }
         ]
+
 
 
 
@@ -387,7 +436,59 @@ class NuclearMCPServer:
                 for a in results
             ]
 
+        elif name == "validate_mission_scenario":
+            from nuclear_engine.domain.mission_validator import MissionValidator
+            res = MissionValidator.validate_file(args["target"])
+            return {
+                "mission_name": res.mission_name,
+                "is_valid": res.is_valid,
+                "error_count": res.error_count,
+                "warning_count": res.warning_count,
+                "issues": [i.__dict__ for i in res.issues],
+            }
+
+        elif name == "get_method_il":
+            from nuclear_engine.extractor.il_inspector import ILInspector
+            inspector = ILInspector()
+            method = inspector.get_method_il(args["class_name"], args["method_name"])
+            if not method:
+                return {"error": f"Method {args['class_name']}.{args['method_name']} not found."}
+            data = {
+                "class_name": method.class_name,
+                "method_name": method.method_name,
+                "signature": method.signature,
+                "code_size": method.code_size,
+                "instructions": [
+                    {"offset": inst.offset, "opcode": inst.opcode, "operand": inst.operand}
+                    for inst in method.instructions
+                ]
+            }
+            if args.get("include_matcher"):
+                data["matcher_template"] = inspector.generate_matcher_template(method)
+            return data
+
+        elif name == "create_aircraft_livery":
+            from nuclear_engine.builder.livery_scaffolder import LiveryScaffolder
+            out_dir = LiveryScaffolder.scaffold(
+                vehicle_name=args["vehicle"],
+                skin_name=args["skin_name"],
+                author=args.get("author", "Modder"),
+            )
+            return {"status": "created", "path": str(out_dir)}
+
+        elif name == "audit_mod_performance":
+            from nuclear_engine.diagnostics.code_auditor import CodeAuditor
+            result = CodeAuditor.audit_mod(args["mod_name"])
+            return {
+                "mod_name": result.mod_name,
+                "is_clean": result.is_clean,
+                "critical_count": result.critical_count,
+                "warning_count": result.warning_count,
+                "issues": [i.__dict__ for i in result.issues],
+            }
+
         raise ValueError(f"Unknown tool: {name}")
+
 
 
 

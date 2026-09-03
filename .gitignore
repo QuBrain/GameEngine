@@ -60,3 +60,5 @@ dist/
 # BepInEx build artifacts
 plugins/**/bin/
 plugins/**/obj/
+skins/
+

@@ -12,7 +12,12 @@ If you are developing BepInEx mods or custom missions for Nuclear Option, this S
 - **Render tactical mission maps:** Generate an interactive 2D browser radar map (`no mission-map "Defend" --web`) with real archipelago coordinates, airbase capture radii, and SAM threat envelopes.
 - **Generate mission scenarios from code:** Programmatically create playable `mission.json` scenarios (`no new-mission "Skirmish" --preset dogfight`) ready to open in the in-game editor.
 - **Search game APIs offline:** Generates a standalone searchable HTML documentation portal (`no docs`) for all 1,200+ decompiled classes.
+- **Validate mission scenarios before launch:** The scenario linter (`no validate-mission "Defend"`) checks for undeclared factions, underwater spawns, missing targets, and broken airbase coordinates.
+- **Inspect CIL bytecode for Harmony Transpilers:** Disassemble game methods (`no il RadarWarning.Start`) to raw instructions and generate `CodeMatcher` boilerplate for deep gameplay modifications.
+- **Scaffold custom liveries and texture loaders:** Generate aircraft skin packages (`no new-livery revoker GhostSquadron`) with metadata, texture folders, and automated BepInEx texture loader plugins.
+- **Audit mod performance and prevent micro-stutters:** The code auditor (`no audit <ModName>`) scans your C# sources for un-cached `GetComponent`, scene searches (`FindObjectsOfType`), and LINQ heap allocations inside `Update()`.
 - **Package for Thunderstore:** One-command packaging (`no pack <ModName>`) that compiles in Release mode, creates manifest.json and a 256x256 icon, and outputs a ready-to-upload zip archive.
+
 
 ## Quick Start
 

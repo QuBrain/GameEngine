@@ -1172,9 +1172,114 @@ def doppler(speed_mps: float, aspect_deg: float):
     console.print(f"[{color}]{explanation}[/{color}]")
 
 
+@app.command(name="validate-mission")
+def validate_mission(
+    target: str = typer.Argument(..., help="Path to mission.json or mission name in MissionEditor"),
+    json_output: bool = typer.Option(False, "--json", help="Output results as JSON"),
+):
+    """Validate and lint a scenario for missing factions, ground collisions, and broken targets."""
+    from nuclear_engine.domain.mission_validator import MissionValidator
+    import json
+
+    try:
+        result = MissionValidator.validate_file(target)
+        if json_output:
+            out = {
+                "mission_name": result.mission_name,
+                "is_valid": result.is_valid,
+                "error_count": result.error_count,
+                "warning_count": result.warning_count,
+                "issues": [i.__dict__ for i in result.issues],
+            }
+            console.print(json.dumps(out, indent=2))
+        else:
+            table = MissionValidator.render_report(result)
+            console.print(table)
+            if not result.is_valid:
+                raise typer.Exit(code=1)
+    except Exception as e:
+        console.print(f"[bold red]Validation Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command(name="il")
+def il_inspect(
+    target: str = typer.Argument(..., help="Target in Class.Method format (e.g. RadarWarning.Start)"),
+    matcher: bool = typer.Option(False, "--matcher", "-m", help="Generate Harmony CodeMatcher C# boilerplate"),
+):
+    """Disassemble and inspect raw CIL bytecode instructions for Harmony Transpilers."""
+    from nuclear_engine.extractor.il_inspector import ILInspector
+
+    if "." not in target:
+        console.print("[bold red]Error:[/bold red] Target must be in 'ClassName.MethodName' format (e.g. RadarWarning.Start).")
+        raise typer.Exit(code=1)
+
+    class_name, method_name = target.split(".", 1)
+    inspector = ILInspector()
+
+    try:
+        method = inspector.get_method_il(class_name, method_name)
+        if not method:
+            console.print(f"[bold yellow]Method not found:[/bold yellow] Could not locate {class_name}::{method_name} in game assembly.")
+            raise typer.Exit(code=1)
+
+        if matcher:
+            code = inspector.generate_matcher_template(method)
+            console.print(code)
+        else:
+            table = inspector.render_table(method)
+            console.print(table)
+    except Exception as e:
+        console.print(f"[bold red]Disassembly Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command(name="new-livery")
+def new_livery(
+    vehicle: str = typer.Argument(..., help="Aircraft name (e.g. Revoker, Cricket, Darkreach)"),
+    skin_name: str = typer.Argument(..., help="Skin name (e.g. GhostSquadron, DesertCamo)"),
+    author: str = typer.Option("Modder", "--author", "-a", help="Author name"),
+):
+    """Scaffold a custom aircraft livery package with texture loader plugin."""
+    from nuclear_engine.builder.livery_scaffolder import LiveryScaffolder
+
+    out_dir = LiveryScaffolder.scaffold(vehicle, skin_name, author=author)
+    console.print(f"[bold green]Livery scaffolded successfully![/bold green] -> {out_dir}")
+    console.print("Place your 2048x2048 textures in this folder: [cyan]albedo.png[/cyan], [cyan]normal.png[/cyan], [cyan]metallic.png[/cyan].")
+
+
+@app.command(name="audit")
+def audit_mod(
+    mod_name: str = typer.Argument(..., help="Mod directory name in plugins/ (e.g. NuclearTelemetry)"),
+    json_output: bool = typer.Option(False, "--json", help="Output results as JSON"),
+):
+    """Audit mod source code for performance bottlenecks, GC spikes, and micro-stutters."""
+    from nuclear_engine.diagnostics.code_auditor import CodeAuditor
+    import json
+
+    try:
+        result = CodeAuditor.audit_mod(mod_name)
+        if json_output:
+            out = {
+                "mod_name": result.mod_name,
+                "is_clean": result.is_clean,
+                "critical_count": result.critical_count,
+                "warning_count": result.warning_count,
+                "issues": [i.__dict__ for i in result.issues],
+            }
+            console.print(json.dumps(out, indent=2))
+        else:
+            table = CodeAuditor.render_report(result)
+            console.print(table)
+    except Exception as e:
+        console.print(f"[bold red]Audit Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
 def main():
     app()
 
 
 if __name__ == "__main__":
     main()
+

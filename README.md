@@ -8,7 +8,8 @@
 [![Protocol](https://img.shields.io/badge/Protocol-MCP%20Server-007ACC?style=flat-square)](https://modelcontextprotocol.io/)
 
 [![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)](https://microsoft.com/windows)
-[![Test Suite](https://img.shields.io/badge/Tests-39%20passed-2ea44f?style=flat-square)](https://docs.pytest.org/)
+[![Test Suite](https://img.shields.io/badge/Tests-44%20passed-2ea44f?style=flat-square)](https://docs.pytest.org/)
+
 
 
 
@@ -441,7 +442,68 @@ uv run no telemetry --port 8766 --packets 20
 
 ---
 
+## Mission Validator and Scenario Linter
+
+Inspect and lint custom mission scenarios for structural faults, missing target entities, ground collisions, and faction mismatches before launching the game:
+
+```bash
+# Validate an editor scenario or mission folder
+uv run no validate-mission "Defend"
+
+# Validate a specific mission.json file directly
+uv run no validate-mission "path/to/mission.json"
+
+# Output validation issues in JSON format
+uv run no validate-mission "Defend" --json
+```
+
+---
+
+## Harmony CIL OpCode and Transpiler Inspector
+
+Disassemble game methods to raw CIL instructions and generate Harmony Transpiler templates:
+
+```bash
+# Disassemble a method to its raw CIL bytecode table
+uv run no il RadarWarning.Start
+
+# Generate Harmony CodeMatcher C# boilerplate for transpiler development
+uv run no il RadarWarning.Start --matcher
+```
+
+---
+
+## Aircraft Livery and Texture Toolchain
+
+Scaffold aircraft skin mods with texture directories, metadata, and automated BepInEx texture loaders:
+
+```bash
+# Scaffold a custom livery package for the Revoker
+uv run no new-livery revoker GhostSquadron --author "AcePilot"
+```
+
+The resulting folder in `skins/` contains `livery.json`, placeholder texture maps, and a compilable C# BepInEx loader plugin that applies textures dynamically at runtime.
+
+---
+
+## Performance and Anti-Stutter Code Auditor
+
+Statically scan mod C# source code for common frame-drop traps and garbage collection spikes in 60 to 144 FPS combat flight simulations:
+
+```bash
+# Audit a mod in the plugins/ directory
+uv run no audit NuclearTelemetry
+
+# Output audit findings as JSON
+uv run no audit NuclearTelemetry --json
+```
+
+The auditor flags un-cached `GetComponent<T>()` calls in `Update()`, scene searches (`FindObjectsOfType`), LINQ heap allocations in per-frame loops, and blocking file or network I/O.
+
+---
+
 ## Directory Structure
+
 
 
 
