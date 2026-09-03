@@ -1,8 +1,18 @@
 # Nuclear Option Modding SDK
 
+[![Target Game](https://img.shields.io/badge/Game-Nuclear%20Option-red?style=flat-square)](https://store.steampowered.com/app/2158680/Nuclear_Option/)
+[![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+[![Package Manager](https://img.shields.io/badge/uv-Astral-DE5FE9?style=flat-square)](https://docs.astral.sh/uv/)
+[![.NET SDK](https://img.shields.io/badge/.NET-8.0%20%7C%209.0-512BD4?style=flat-square&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
+[![Mod Framework](https://img.shields.io/badge/Mod%20Loader-BepInEx%205-F49342?style=flat-square)](https://github.com/BepInEx/BepInEx)
+[![Protocol](https://img.shields.io/badge/Protocol-MCP%202024--11--05-007ACC?style=flat-square)](https://modelcontextprotocol.io/)
+[![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)](https://microsoft.com/windows)
+[![Test Suite](https://img.shields.io/badge/Tests-27%20passed-2ea44f?style=flat-square)](https://docs.pytest.org/)
+
 NuclearEngine is a development toolkit and code intelligence system for the combat flight simulator [Nuclear Option](https://store.steampowered.com/app/2158680/Nuclear_Option/). It provides reverse engineering tools, a token-efficient code indexer, automated BepInEx mod scaffolding, compilation and deployment pipelines, and a Model Context Protocol (MCP) server for integration with development environments.
 
 ---
+
 
 ## Philosophy: AI-Assisted Modding and Accessibility
 
