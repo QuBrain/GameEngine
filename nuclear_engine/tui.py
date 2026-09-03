@@ -1,13 +1,12 @@
-"""Interactive Terminal User Interface (TUI) for Nuclear Option code and API discovery.
-Inspired by modern developer search engines like OpenCode.
+"""OpenCode-style Interactive Terminal Search Engine for Nuclear Option.
+Features centered green ASCII art home screen and seamless instant search results.
 """
 
 from pathlib import Path
 from typing import List, Tuple, Optional
 
-
 from textual.app import App, ComposeResult
-from textual.containers import Horizontal, Vertical, Container
+from textual.containers import Horizontal, Vertical, Center, Middle, Container
 from textual.widgets import Header, Footer, Input, ListView, ListItem, Static, Label, TabbedContent, TabPane
 from textual.binding import Binding
 from rich.syntax import Syntax
@@ -18,6 +17,21 @@ from nuclear_engine.config import config
 from nuclear_engine.extractor.code_indexer import CodeIndexer, ClassInfo, MethodInfo
 from nuclear_engine.domain.units import KNOWN_AIRCRAFT, KNOWN_GROUND_UNITS, KNOWN_NAVAL_UNITS
 from nuclear_engine.extractor.mission_scanner import MissionScanner
+
+ASCII_LOGO = r"""[bold green]
+  _  _ _   _  ___ _    ___   _   ___    ___  ___ _____ ___ ___  _  _ 
+ | \| | | | |/ __| |  | __| /_\ | _ \  / _ \| _ \_   _|_ _/ _ \| \| |
+ | .` | |_| | (__| |__| _| / _ \|   / | (_) |  _/ | |  | | (_) | .` |
+ |_|\_|\___/ \___|____|___/_/ \_\_|_\  \___/|_|   |_| |___\___/|_|\_|
+[/bold green]
+[dim green]━━━━━━━ TACTICAL INTELLIGENCE & REVERSE ENGINEERING SEARCH ENGINE ━━━━━━━[/dim green]
+"""
+
+
+HINTS = """[dim]
+Try searching: [cyan]Aircraft[/cyan] • [cyan]Radar[/cyan] • [cyan]Missile[/cyan] • [cyan]LockedByMissile[/cyan] • [cyan]SeekerMode[/cyan] • [cyan]TakeDamage[/cyan]
+[yellow]ESC[/yellow] Clear / Home   •   [yellow]↑ / ↓[/yellow] Navigate   •   [yellow]Tab[/yellow] Switch Tabs   •   [yellow]Q[/yellow] Quit
+[/dim]"""
 
 
 class SearchResultItem(ListItem):
@@ -44,33 +58,77 @@ class SearchResultItem(ListItem):
 class NuclearSearchApp(App):
     CSS = """
     Screen {
-        background: #12141a;
-        color: #e0e0e0;
+        background: #0d1117;
+        color: #e6edf3;
     }
 
-    #search_container {
+    #home_view {
+        width: 100%;
+        height: 100%;
+        align: center middle;
+    }
+
+    #home_box {
+        width: 84;
+        height: auto;
+        align: center middle;
+        padding: 1 2;
+    }
+
+    #ascii_logo {
+        content-align: center middle;
+        text-align: center;
+        margin-bottom: 1;
+    }
+
+    #home_search_input {
+        width: 100%;
+        border: tall #22c55e;
+        background: #161b22;
+        color: #ffffff;
+        margin: 1 0;
+    }
+
+    #home_search_input:focus {
+        border: tall #4ade80;
+    }
+
+    #home_hints {
+        content-align: center middle;
+        text-align: center;
+        margin-top: 1;
+    }
+
+    /* RESULTS VIEW (SPLIT SCREEN) */
+    #results_view {
+        width: 100%;
+        height: 100%;
+        display: none;
+    }
+
+    #top_search_bar {
         dock: top;
         height: 4;
-        padding: 1;
-        background: #1a1d26;
-        border-bottom: heavy #3b82f6;
+        padding: 0 1;
+        background: #161b22;
+        border-bottom: solid #30363d;
     }
 
-    #search_input {
+    #top_input {
         width: 100%;
-        background: #0f1117;
-        border: tall #2563eb;
+        border: tall #22c55e;
+        background: #0d1117;
         color: #ffffff;
     }
 
-    #main_layout {
+    #results_split {
         height: 1fr;
     }
 
-    #left_pane {
-        width: 40%;
-        border-right: solid #2a2e3d;
-        background: #141720;
+    #results_sidebar {
+        width: 38%;
+        border-right: solid #30363d;
+        background: #161b22;
     }
 
     #results_list {
@@ -80,22 +138,22 @@ class NuclearSearchApp(App):
 
     ListItem {
         padding: 1;
-        border-bottom: solid #1f2330;
+        border-bottom: solid #21262d;
     }
 
     ListItem:hover {
-        background: #1e2433;
+        background: #1f242c;
     }
 
     ListItem.-selected {
-        background: #2563eb;
+        background: #238636;
         color: white;
     }
 
-    #right_pane {
-        width: 60%;
+    #preview_pane {
+        width: 62%;
         padding: 1;
-        background: #0f1117;
+        background: #0d1117;
     }
 
     #code_preview {
@@ -106,9 +164,7 @@ class NuclearSearchApp(App):
 
     BINDINGS = [
         Binding("q", "quit", "Quit"),
-        Binding("escape", "focus_search", "Search"),
-        Binding("down", "cursor_down", "Down", show=False),
-        Binding("up", "cursor_up", "Up", show=False),
+        Binding("escape", "go_home", "Clear / Home"),
     ]
 
     def __init__(self):
@@ -118,32 +174,75 @@ class NuclearSearchApp(App):
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
-        with Container(id="search_container"):
-            yield Input(placeholder="🔍 Search Nuclear Option classes, methods, structs, events (e.g. Radar, Missile, Damage)...", id="search_input")
 
-        with Horizontal(id="main_layout"):
-            with Vertical(id="left_pane"):
-                yield ListView(id="results_list")
+        # 1. CENTERED HOME VIEW (OpenCode Style)
+        with Container(id="home_view"):
+            with Center():
+                with Middle():
+                    with Vertical(id="home_box"):
+                        yield Static(ASCII_LOGO, id="ascii_logo")
+                        yield Input(placeholder="Search classes, methods, structs, events, units...", id="home_search_input")
+                        yield Static(HINTS, id="home_hints")
 
-            with Vertical(id="right_pane"):
-                with TabbedContent():
-                    with TabPane("Code / API", id="tab_code"):
-                        yield Static("Select a result on the left to inspect its implementation.", id="code_preview")
-                    with TabPane("Harmony Hook", id="tab_hook"):
-                        yield Static("Ready-to-use BepInEx patch template will appear here.", id="hook_preview")
-                    with TabPane("Callers", id="tab_callers"):
-                        yield Static("Call hierarchy will appear here.", id="callers_preview")
+        # 2. ACTIVE RESULTS VIEW (Split-Screen)
+        with Container(id="results_view"):
+            with Container(id="top_search_bar"):
+                yield Input(placeholder="Search Nuclear Option...", id="top_input")
+
+            with Horizontal(id="results_split"):
+                with Vertical(id="results_sidebar"):
+                    yield ListView(id="results_list")
+
+                with Vertical(id="preview_pane"):
+                    with TabbedContent():
+                        with TabPane("Code / API", id="tab_code"):
+                            yield Static("Select a result on the left to inspect its implementation.", id="code_preview")
+                        with TabPane("Harmony Hook", id="tab_hook"):
+                            yield Static("Ready-to-use BepInEx patch template will appear here.", id="hook_preview")
+                        with TabPane("Callers", id="tab_callers"):
+                            yield Static("Call hierarchy will appear here.", id="callers_preview")
 
         yield Footer()
 
     def on_mount(self) -> None:
-        self.query_one("#search_input", Input).focus()
-        self.run_search("Aircraft")
+        self.query_one("#home_search_input", Input).focus()
 
     def on_input_changed(self, event: Input.Changed) -> None:
         query = event.value.strip()
-        if len(query) >= 2:
-            self.run_search(query)
+
+        # Switch to Results View if query has text
+        if len(query) >= 1:
+            self.show_results_view(query, sync_from=event.input.id)
+        else:
+            self.show_home_view()
+
+    def show_results_view(self, query: str, sync_from: str) -> None:
+        home_view = self.query_one("#home_view", Container)
+        results_view = self.query_one("#results_view", Container)
+        top_input = self.query_one("#top_input", Input)
+
+        home_view.styles.display = "none"
+        results_view.styles.display = "block"
+
+        if sync_from == "home_search_input":
+            top_input.value = query
+            top_input.focus()
+            top_input.cursor_position = len(query)
+
+        self.run_search(query)
+
+    def show_home_view(self) -> None:
+        home_view = self.query_one("#home_view", Container)
+        results_view = self.query_one("#results_view", Container)
+        home_input = self.query_one("#home_search_input", Input)
+
+        results_view.styles.display = "none"
+        home_view.styles.display = "block"
+        home_input.value = ""
+        home_input.focus()
+
+    def action_go_home(self) -> None:
+        self.show_home_view()
 
     def run_search(self, query: str) -> None:
         results_list = self.query_one("#results_list", ListView)
@@ -151,7 +250,7 @@ class NuclearSearchApp(App):
 
         q_lower = query.lower()
         count = 0
-        max_items = 40
+        max_items = 35
 
         # 1. Search Classes
         self.indexer._ensure_cache()
@@ -207,7 +306,6 @@ class NuclearSearchApp(App):
             c_name = item.data["class_name"]
             m_name = item.data["method_name"]
 
-            # Method source code
             res = self.indexer.get_method_source(c_name, m_name)
             if res:
                 src, line_no = res
@@ -216,14 +314,12 @@ class NuclearSearchApp(App):
             else:
                 code_preview.update(f"Source for {c_name}.{m_name} could not be parsed.")
 
-            # Harmony Hook
             patch = self.indexer.generate_harmony_patch(c_name, m_name)
             if patch:
                 hook_preview.update(Syntax(patch, "csharp", theme="monokai"))
             else:
                 hook_preview.update("No hook could be generated.")
 
-            # Callers
             callers = self.indexer.find_callers(m_name, limit=15)
             if callers:
                 t = Table(title=f"Callers of {m_name}", box=box.ROUNDED)
@@ -255,7 +351,6 @@ class NuclearSearchApp(App):
                 code_preview.update(t)
                 hook_preview.update(f"Select a specific method in {info.name} to view Harmony patch.")
 
-                # Subclasses
                 subs = self.indexer.find_subclasses(c_name)
                 if subs:
                     callers_preview.update(f"Subclasses ({len(subs)}):\n" + "\n".join(f"• {n}" for n, _ in subs))
@@ -278,9 +373,6 @@ class NuclearSearchApp(App):
                 code_preview.update(info_text)
                 hook_preview.update("N/A for static unit database")
                 callers_preview.update("N/A")
-
-    def action_focus_search(self) -> None:
-        self.query_one("#search_input", Input).focus()
 
 
 def start_tui():
